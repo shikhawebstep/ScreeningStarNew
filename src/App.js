@@ -39,11 +39,17 @@ import PrepareReport from "./Components/Pages/prepareReport.js";
 import ServiceManagement from "./Components/Pages/serviceManagment.js";
 import PackageManagement from "./Components/Pages/packageManagment.js";
 import LoginCheck from './Components/Pages/LoginCheck.js';
+import IsNotLogin from './Components/Pages/isNotLogin.js';
 import DataManagement from "./Components/Pages/dataManagment.js";
 import TeamManagment from "./Components/Pages/teamManagment.js";
 import ClientManagementData from "./Components/Pages/admin-clienttable.js";
 import 'react-select-search/style.css'
 import SelectSearch from 'react-select-search';
+import AdminForgotPassword from './Components/Pages/Admin-Forgot-Password';
+import AdminSetPassword from './Components/Pages/Admin-Set-Password';
+import AdminUpdatePassword from "./Components/Pages/Admin-Update-Password.js"
+import BranchLoginCheck from './Components/Pages/Branch-LoginCheck.js';
+
 
 import UserDashboard from "./Components/UserPages/userDashboard.js"
 import UserCreate from "./Components/UserPages/createUser.js";
@@ -57,6 +63,9 @@ import CandidateManager from "./Components/UserPages/CandidateManager.js";
 import ClientManager from "./Components/UserPages/ClientManager.js";
 import DataTable from "./Components/UserPages/innerpages/MasterTable.js";
 import UserHeader from "./Components/UserPages/userHeader.js";
+import UserForgotPassword from './Components/UserPages/User-Forgot-Password';
+import UserSetPassword from "./Components/UserPages/User-reset-password";
+import UserUpdatePassword from "./Components/UserPages/User-Update-Password";
 import { ClientProvider } from "./Components/Pages/ClientContext.js";
 import EditClient from "./Components/Pages/EditClient.js";
 
@@ -64,7 +73,14 @@ const Layout = () => {
   const location = useLocation();
   const isUserRoute = location.pathname.startsWith("/user");
   const isAdminRoute = location.pathname.startsWith("/admin") || location.pathname === "/";
-  const hideSidebarAndHeader = location.pathname === "/admin-login" || location.pathname === "/userLogin";
+  const hideSidebarAndHeader =
+    location.pathname === "/admin-login" ||
+    location.pathname === "/admin-forgot-password" ||
+    location.pathname === "/user-forgot-password" ||
+    location.pathname === "/admin-set-password" ||
+    location.pathname === "/branch/reset-password" ||
+    location.pathname === "/userLogin";
+
 
   return (
     <div className="">
@@ -90,6 +106,9 @@ const Layout = () => {
               <Route path="/userLogin" element={<UserLogin />} />
               <Route path="/" element={<LoginCheck><Dashboard /></LoginCheck>} />
               <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin-forgot-password" element={<IsNotLogin><AdminForgotPassword /></IsNotLogin>} />
+              <Route path="/reset-password" element={<IsNotLogin><AdminSetPassword /></IsNotLogin>} />
+              <Route path="/admin-update-password" element={<LoginCheck><AdminUpdatePassword /></LoginCheck>} />
               <Route path="/admin-add-new-client" element={<LoginCheck><AddClient /></LoginCheck>} />
               <Route path="/admin-editclient" element={<LoginCheck><EditClient /></LoginCheck>} />
               <Route path="/admin-screeningstar-admin" element={<LoginCheck><ScreeningstarAdmin /></LoginCheck>} />
@@ -126,17 +145,24 @@ const Layout = () => {
               <Route path="/admin-clienttable" element={<LoginCheck><ClientManagementData /></LoginCheck>} />
 
 
-              <Route path="/user-dashboard" element={<UserDashboard />} />
-              <Route path="/user-create" element={<UserCreate />} />
-              <Route path="/user-candidateManager" element={<CandidateManager />} />
-              <Route path="/user-verificationStatus" element={<VerificationStatus />} />
-              <Route path="/user-bulkApplication" element={<BulkApplication />} />
-              <Route path="/user-checklistAndEscalation" element={<ChecklistAndEscalation />} />
-              <Route path="/user-MasterDashboard" element={<MasterDashboard />} />
-              <Route path="/user-createTickets" element={<CreateTickets />} />
-              <Route path="/user-ApiIntegration" element={<ApiIntegration />} />
-              <Route path="/user-ClientManager" element={<ClientManager />} />
-              <Route path="/user-DataTable" element={<DataTable />} />
+              <Route path="/user-dashboard" element={<BranchLoginCheck><UserDashboard /></BranchLoginCheck>} />
+
+              <Route path="/user-create" element={<BranchLoginCheck> <UserCreate /></BranchLoginCheck>} />
+              <Route path="/user-candidateManager" element={<BranchLoginCheck><CandidateManager /></BranchLoginCheck>} />
+              <Route path="/user-verificationStatus" element={<BranchLoginCheck><VerificationStatus /></BranchLoginCheck>} />
+              <Route path="/user-bulkApplication" element={<BranchLoginCheck><BulkApplication /></BranchLoginCheck>} />
+              <Route path="/user-checklistAndEscalation" element={<BranchLoginCheck><ChecklistAndEscalation /></BranchLoginCheck>} />
+              <Route path="/user-MasterDashboard" element={<BranchLoginCheck><MasterDashboard /> </BranchLoginCheck>} />
+              <Route path="/user-createTickets" element={<BranchLoginCheck><CreateTickets /></BranchLoginCheck>} />
+              <Route path="/user-ApiIntegration" element={<BranchLoginCheck><ApiIntegration /></BranchLoginCheck>} />
+              <Route path="/user-ClientManager" element={<BranchLoginCheck><ClientManager /></BranchLoginCheck>} />
+              <Route path="/user-DataTable" element={<BranchLoginCheck><DataTable /></BranchLoginCheck>} />
+              <Route path="/user-forgot-password" element={<UserForgotPassword />} />
+              <Route path="/branch/reset-password" element={<UserSetPassword />} />
+              <Route path="/user-update-password" element={<BranchLoginCheck><UserUpdatePassword /></BranchLoginCheck>} />
+
+
+
 
             </Routes>
           </div>
@@ -156,7 +182,6 @@ const App = () => {
         </Router>
       </ClientProvider>
     </SidebarProvider>
-
   );
 };
 
