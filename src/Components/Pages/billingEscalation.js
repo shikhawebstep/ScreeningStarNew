@@ -20,22 +20,22 @@ const BillingEscalation = () => {
   const fetchData = useCallback(() => {
     const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
     const storedToken = localStorage.getItem("_token");
-  
+
     // Check if admin_id or storedToken is missing
     if (!admin_id || !storedToken) {
       console.error('Missing admin_id or _token');
       return;
     }
-  
+
     // Construct the URL with query parameters
     const url = `https://screeningstar-new.onrender.com/billing-escalation/list?admin_id=${admin_id}&_token=${storedToken}`;
-  
+
     // Request options for GET request (no body required)
     const requestOptions = {
       method: "GET", // GET method does not need a body
       redirect: "follow",
     };
-  
+
     fetch(url, requestOptions)
       .then((response) => {
         // Check if the response is successful
@@ -45,16 +45,16 @@ const BillingEscalation = () => {
         return response.json(); // or response.json() if the response is JSON
       })
       .then((result) => {
-        const newToken=result.token || result._token || ''
-        if(newToken){
-          localStorage.setItem("_token",newToken)
+        const newToken = result.token || result._token || ''
+        if (newToken) {
+          localStorage.setItem("_token", newToken)
         }
         console.log('API result:', result);
         // Assuming the result is JSON, you can parse it here
         try {
-         
+
           setSpocs(result.billing_escalations);
-           // Assuming setSpocs expects a parsed object
+          // Assuming setSpocs expects a parsed object
         } catch (error) {
           console.error('Failed to parse JSON:', error);
 
@@ -101,12 +101,12 @@ const BillingEscalation = () => {
     try {
       const response = await fetch(url, requestOptions);
       if (response.ok) {
-        const newToken=response.token || response._token || ''
-        if(newToken){
-          localStorage.setItem("_token",newToken)
+        const newToken = response.token || response._token || ''
+        if (newToken) {
+          localStorage.setItem("_token", newToken)
         }
         const data = await response.json(); // Extract JSON data
-        Swal.fire("Success!",data.message); 
+        Swal.fire("Success!", data.message);
         fetchData(); // Refresh data after form submission                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          
         setFormData({ name: "", designation: "", phone: "", email: "" });
         setIsEditing(false);
@@ -134,7 +134,7 @@ const BillingEscalation = () => {
       body: formdata,
       redirect: "follow"
     };
-  
+
     Swal.fire({
       title: "Are you sure?",
       text: "Do you really want to delete this item?",
@@ -148,9 +148,9 @@ const BillingEscalation = () => {
         fetch(`https://screeningstar-new.onrender.com/billing-escalation/delete?id=${id}&admin_id=${admin_id}&_token=${storedToken}`, requestOptions)
           .then((response) => response.json())
           .then((result) => {
-            const newToken=result.token || result._token || ''
-            if(newToken){
-              localStorage.setItem("_token",newToken)
+            const newToken = result.token || result._token || ''
+            if (newToken) {
+              localStorage.setItem("_token", newToken)
             }
             Swal.fire("Deleted!", "The item has been deleted.", "success");
             fetchData(); // Refresh data
@@ -256,28 +256,28 @@ const BillingEscalation = () => {
                     </tr>
                   </thead>
                   <tbody>
-  {currentSpocs.length === 0 ? (
-    <tr>
-      <td colSpan={6} className="py-4 text-center text-gray-500">
-        Your table is empty.
-      </td>
-    </tr>
-  ) : (
-    currentSpocs.map((spoc, index) => (
-      <tr key={spoc.id} className="hover:bg-gray-200">
-        <td className="py-2 px-4 border">{index + 1 + indexOfFirstItem}</td>
-        <td className="py-2 px-4 border">{spoc.name}</td>
-        <td className="py-2 px-4 border">{spoc.designation}</td>
-        <td className="py-2 px-4 border">{spoc.phone}</td>
-        <td className="py-2 px-4 border">{spoc.email}</td>
-        <td className="py-2 px-4 border whitespace-nowrap ">
-          <button className="bg-green-500 text-white px-4 py-2 rounded mr-2" onClick={() => handleEdit(spoc)}>Edit</button>
-          <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={() => handleDelete(spoc.id)}>Delete</button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
+                    {currentSpocs.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-center text-gray-500">
+                          Your table is empty.
+                        </td>
+                      </tr>
+                    ) : (
+                      currentSpocs.map((spoc, index) => (
+                        <tr key={spoc.id} className="hover:bg-gray-200">
+                          <td className="py-2 px-4 border">{index + 1 + indexOfFirstItem}</td>
+                          <td className="py-2 px-4 border">{spoc.name}</td>
+                          <td className="py-2 px-4 border">{spoc.designation}</td>
+                          <td className="py-2 px-4 border">{spoc.phone}</td>
+                          <td className="py-2 px-4 border">{spoc.email}</td>
+                          <td className="py-2 px-4 border whitespace-nowrap ">
+                            <button className="bg-green-500 text-white px-4 py-2 rounded mr-2" onClick={() => handleEdit(spoc)}>Edit</button>
+                            <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={() => handleDelete(spoc.id)}>Delete</button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
 
                 </table>
                 <div className="flex justify-center mt-4">

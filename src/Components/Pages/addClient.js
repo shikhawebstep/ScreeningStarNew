@@ -1,31 +1,22 @@
 import { React, useState, useEffect, useCallback } from "react";
 import "../../App.css";
-import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { MultiSelect } from "react-multi-select-component";
 import { State } from "country-state-city";
-import axios from "axios";
-import imageCompression from "browser-image-compression";
-import ClientManagementData from "./admin-clienttable";
 import SelectSearch from 'react-select-search';
 import 'react-select-search/style.css'
-
-
+import Swal from 'sweetalert2'
+import axios from "axios";
+import { useClientContext } from "./ClientContext";
 const states = State.getStatesOfCountry("IN");
 const option = states.map((state) => ({ value: state.isoCode, label: state.name }));
 const storedToken = localStorage.getItem("token");
 const AddClient = () => {
+    const { client_spoc_id, AllSpocs, escalation_manager_id, billing_spoc_id, billing_escalation_id, authorized_detail_id, } = useClientContext();
     const [priceData, setPriceData] = useState({});
+    const [files, setFiles] = useState([]);
     const [service, setService] = useState([]);
-    const [client_spocs, setclient_spocs] = useState([]);
-    const [filtredService, setFiltredService] = useState({});
-    const [escalation_manager, Setescalation_manager] = useState([]);
-    const [billing_spocs, setbilling_spocs] = useState([]);
-    const [billing_escalation, setbilling_escalation] = useState([]);
-    const [authorizedDetails, setAuthorizedDetails] = useState([]);
     const [selectedServices, setSelectedServices] = useState({});
-    const [loading, setLoading] = useState(false);
-    const [selectedData, setSelectedData] = useState({});
     const [services, setServices] = useState([]);
     const [packageList, setPackageList] = useState([]);
     const [selectedPackages, setSelectedPackages] = useState([]);
@@ -34,161 +25,88 @@ const AddClient = () => {
     const [selected, setSelected] = useState([]);
     const [errors, setErrors] = useState({});
     const [branches, setBranches] = useState([{ branch_email: "", branch_name: "" }]);
+    const [emails, setemails] = useState([]);
     const [fileName, setFileName] = useState("");
     const [apiError, setApiError] = useState("");
-    const [error, setError] = useState(null);
+    const [clientData, setClientData] = useState({
+        company_name: "",
+        client_code: "",
+        address: "",
+        state: "",
+        state_code: "",
+        gstin: "",
+        tat: "",
+        date_agreement: "",
+        clientProcedure: "",
+        agreement_period: "",
+        custom_template: "",
+        scopeOfServices: [],
+        mobile_number: "",
+        role: "",
+        client_standard: "",
+        client_spoc_id: "",
+        escalation_manager_id: "",
+        billing_spoc_id: "",
+        billing_escalation_id: "",
+        authorized_detail_id: "",
+        username: "",
+    });
+
+    const handleFileChange = (fileName, e) => {
+        const selectedFiles = Array.from(e.target.files); // Convert FileList to an array
+
+        // Assuming `file` is the state variable holding the files
+        setFiles((prevFiles) => {
+            return {
+                ...prevFiles,
+                [fileName]: selectedFiles,
+            };
+        });
+    };
+    const uploadCustomerLogo = async (adminId, token, customerInsertId, password) => {
 
 
+        const fileCount = Object.keys(files).length;
+        for (const [index, [key, value]] of Object.entries(files).entries()) {
+            const customerLogoFormData = new FormData();
+            customerLogoFormData.append('admin_id', adminId);
+            customerLogoFormData.append('_token', token);
+            customerLogoFormData.append('customer_code', clientData.client_code);
+            customerLogoFormData.append('customer_id', customerInsertId);
+            for (const file of value) {
+                customerLogoFormData.append('images', file);
+                customerLogoFormData.append('upload_category', key);
+            }
+            if (fileCount === (index + 1)) {
+                customerLogoFormData.append('send_mail', 1);
+                customerLogoFormData.append('company_name', clientData.company_name);
+                customerLogoFormData.append('password', password);
+            }
 
-    const fetchclient_spoc = useCallback(() => {
-        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-        const storedToken = localStorage.getItem("_token");
-
-        if (!admin_id || !storedToken) {
-            console.error('Missing admin_id or _token');
-            return;
+            try {
+                await axios.post(
+                    `https://screeningstar-new.onrender.com/customer/upload`,
+                    customerLogoFormData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                    }
+                );
+            } catch (err) {
+                Swal.fire('Error!', `An error occurred while uploading logo: ${err.message}`, 'error');
+            }
         }
-
-        const url = `https://screeningstar-new.onrender.com/client-spoc/list?admin_id=${admin_id}&_token=${storedToken}`;
-
-        fetch(url, { method: "GET", redirect: "follow" })
-            .then((response) => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then((result) => {
-                const newToken = result.token || result._token || '';
-                if (newToken) localStorage.setItem("_token", newToken);
-                setclient_spocs(result.client_spocs);
-            })
-            .catch((error) => console.error('Fetch error:', error));
-    }, []);
-    const fetchescalation_manager = useCallback(() => {
-        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-        const storedToken = localStorage.getItem("_token");
-
-        if (!admin_id || !storedToken) {
-            console.error('Missing admin_id or _token');
-            return;
-        }
-
-        const url = `https://screeningstar-new.onrender.com/escalation-manager/list?admin_id=${admin_id}&_token=${storedToken}`;
-
-        fetch(url, { method: "GET", redirect: "follow" })
-            .then((response) => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then((result) => {
-                const newToken = result.token || result._token || '';
-                if (newToken) localStorage.setItem("_token", newToken);
-                const escalation_manager = result.escalation_managers;
-                const escalation_managerOptions = escalation_manager.map(escalation => ({
-                    name: escalation.name,
-                    value: escalation.id,
-                }));
-                Setescalation_manager(escalation_managerOptions);
-            })
-            .catch((error) => console.error('Fetch error:', error));
-    }, []);
-    const fetchbilling_spoc = useCallback(() => {
-        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-        const storedToken = localStorage.getItem("_token");
-
-        if (!admin_id || !storedToken) {
-            console.error('Missing admin_id or _token');
-            return;
-        }
-
-        const url = `https://screeningstar-new.onrender.com/billing-spoc/list?admin_id=${admin_id}&_token=${storedToken}`;
-
-        fetch(url, { method: "GET", redirect: "follow" })
-            .then((response) => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then((result) => {
-                const newToken = result.token || result._token || '';
-                if (newToken) localStorage.setItem("_token", newToken);
-                const escalation_manager = result.billing_spocs;
-                const escalation_managerOptions = escalation_manager.map(escalation => ({
-                    name: escalation.name,
-                    value: escalation.id,
-                }));
-                setbilling_spocs(escalation_managerOptions);
-            })
-            .catch((error) => console.error('Fetch error:', error));
-    }, []);
-    const fetchbilling_escalation = useCallback(() => {
-        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-        const storedToken = localStorage.getItem("_token");
-
-        if (!admin_id || !storedToken) {
-            console.error('Missing admin_id or _token');
-            return;
-        }
-
-        const url = `https://screeningstar-new.onrender.com/billing-escalation/list?admin_id=${admin_id}&_token=${storedToken}`;
-
-        fetch(url, { method: "GET", redirect: "follow" })
-            .then((response) => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then((result) => {
-                const newToken = result.token || result._token || '';
-                if (newToken) localStorage.setItem("_token", newToken);
-                const escalation_manager = result.billing_escalations;
-                const escalation_managerOptions = escalation_manager.map(escalation => ({
-                    name: escalation.name,
-                    value: escalation.id,
-                }));
-                setbilling_escalation(escalation_managerOptions);
-            })
-            .catch((error) => console.error('Fetch error:', error));
-    }, []);
-    const fetchAuthorizedDetails = useCallback(() => {
-        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-        const storedToken = localStorage.getItem("_token");
-
-        if (!admin_id || !storedToken) {
-            console.error('Missing admin_id or _token');
-            return;
-        }
-
-        const url = `https://screeningstar-new.onrender.com/authorized-detail/list?admin_id=${admin_id}&_token=${storedToken}`;
-
-        fetch(url, { method: "GET", redirect: "follow" })
-            .then((response) => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then((result) => {
-                const newToken = result.token || result._token || '';
-                if (newToken) localStorage.setItem("_token", newToken);
-                const escalation_manager = result.authorized_details;
-                const escalation_managerOptions = escalation_manager.map(escalation => ({
-                    name: escalation.name,
-                    value: escalation.id,
-                }));
-                setAuthorizedDetails(escalation_managerOptions);
-            })
-            .catch((error) => console.error('Fetch error:', error));
-    }, []);
+    };
 
 
+    const memoizedAllSpocs = useCallback(() => {
+        AllSpocs(); // Call the original AllSpocs function
+    }, [AllSpocs]); // Only recreate this function if AllSpocs changes
     
-
     useEffect(() => {
-        fetchclient_spoc();
-        fetchescalation_manager();
-        fetchbilling_spoc();
-        fetchbilling_escalation();
-        fetchAuthorizedDetails();
-    }, [fetchclient_spoc, fetchescalation_manager, fetchbilling_spoc, fetchbilling_escalation, fetchAuthorizedDetails])
-
-
-
+        memoizedAllSpocs(); // This will now run only once unless AllSpocs itself changes
+    }, [memoizedAllSpocs]); 
 
 
     const addBranch = () => {
@@ -206,33 +124,6 @@ const AddClient = () => {
         { value: "option3", label: "Option 3" },
     ];
 
-    const [clientData, setClientData] = useState({
-        company_name: "",
-        client_code: "",
-        address: "",
-        state: "",
-        state_code: "",
-        gstin: "",
-        tat: "",
-        emails: "",
-        date_agreement: "",
-        clientProcedure: "",
-        agreement_period: "",
-        custom_template: "",
-        client_logo: "",
-        scopeOfServices: [],
-        phone: "",
-        role: "",
-        standard_process: "",
-        client_spoc: "",
-        escalation_manager: "",
-        billing_spoc: "",
-        billing_escalation: "",
-        authorizedPerson: "",
-        username: "",
-    });
-
-
 
     const handleInputChange = (index, event) => {
         const { name, value } = event.target;
@@ -240,9 +131,6 @@ const AddClient = () => {
         newBranches[index][name] = value;
         setBranches(newBranches);
     };
-
-
-
 
 
     const fetchServices = useCallback(() => {
@@ -266,6 +154,10 @@ const AddClient = () => {
         fetch(url, requestOptions)
             .then((response) => response.json()) // Assuming the server returns JSON
             .then((result) => {
+                const newToken = result.token || result._token || ''
+                if (newToken) {
+                    localStorage.setItem("_token", newToken)
+                }
                 // Log the result to understand its structure
                 console.log(result);
 
@@ -297,6 +189,10 @@ const AddClient = () => {
         fetch(url, requestOptions)
             .then((response) => response.json()) // Assuming the server returns JSON
             .then((result) => {
+                const newToken = result.token || result._token || ''
+                if (newToken) {
+                    localStorage.setItem("_token", newToken)
+                }
                 // Log the result to understand its structure
                 console.log('package', result);
 
@@ -306,31 +202,6 @@ const AddClient = () => {
             .catch((error) => console.error('Error fetching services:', error));
     }, [storedToken]);
     console.log("service", service);
-    useEffect(() => {
-        const updatedServiceData = service.map((item) => {
-            const packageObject = (selectedPackages[item.id] || []).reduce((acc, pkgId) => {
-                const pkg = packageList.find(p => p.id === pkgId);
-                if (pkg) {
-                    acc[pkg.id] = pkg.packageName;
-                }
-                return acc;
-            }, {});
-            return {
-                serviceId: item.id,
-                sub_serviceName: item.sub_service_name,
-                serviceCode: item.service_code,
-                serviceTitle: item.service_name,
-                pricingPackages: priceData[item.id]?.pricingPackages || '',
-                packages: packageObject,
-            };
-        });
-        const filteredSelectedData = updatedServiceData.filter(item => selectedServices[item.serviceId]);
-
-        setSelectedData(updatedServiceData);
-        console.log("us=", updatedServiceData);
-        setFiltredService(filteredSelectedData);
-        console.log("updatedServiceData=", updatedServiceData);
-    }, [service, selectedPackages, priceData, selectedServices, packageList]);
 
     useEffect(() => {
         fetchServices();
@@ -339,23 +210,41 @@ const AddClient = () => {
 
     // 1. Handle checkbox change (checking/unchecking a service)
     const handleCheckboxChange = ({ group_id, group_symbol, group_name, service_id, service_name, price, selected_packages }) => {
-        setSelectedServices(prevSelectedServices => ({
-            ...prevSelectedServices,
-            [service_id]: !prevSelectedServices[service_id] // Toggle checkbox state
-        }));
+        setSelectedServices(prevSelectedServices => {
+            const isSelected = prevSelectedServices[service_id];
+            const newSelectedState = !isSelected; // Toggle checkbox state
 
-        // Send the data when checkbox is clicked
-        sendDataToServer({
-            group_id,
-            group_symbol,
-            group_name,
-            service_id,
-            service_name,
-            price,
-            selected_packages,
-            action: "checkbox_change"
+            // Update priceData and selectedPackages if deselecting
+            if (!newSelectedState) {
+                setPriceData(prevPriceData => ({
+                    ...prevPriceData,
+                    [service_id]: { pricingPackages: "" }
+                }));
+                setSelectedPackages(prevSelectedPackages => ({
+                    ...prevSelectedPackages,
+                    [service_id]: []
+                }));
+            }
+
+            // Send the data to server with the current selection status and other details
+            sendDataToServer({
+                group_id,
+                group_symbol,
+                group_name,
+                service_id,
+                service_name,
+                price: newSelectedState ? price : "", // Send empty if deselected
+                selected_packages: newSelectedState ? selected_packages : [], // Send empty if deselected
+                action: "checkbox_change"
+            });
+
+            return {
+                ...prevSelectedServices,
+                [service_id]: newSelectedState
+            };
         });
     };
+
 
     // 2. Handle price change (focus in/out or typing in the price input)
     const handlePriceChange = (e, service_id) => {
@@ -387,6 +276,10 @@ const AddClient = () => {
             name: pkg.label
         }));
 
+        setSelectedPackages(prevSelected => ({
+            ...prevSelected,
+            [serviceId]: selectedList.map(pkg => pkg.value) // Store only the selected package IDs
+        }));
         // Now, send the selected packages data
         const dataToSend = {
             action: 'package_change',
@@ -446,12 +339,17 @@ const AddClient = () => {
 
         // Update the clientData.scopeOfServices directly
         clientData.scopeOfServices = [...services];  // Ensure clientData is updated with the latest services
+        setClientData((prev) => ({
+            ...prev,
+            'scopeOfServices': services,
+        }));
+
         console.log("Updated clientData.scopeOfServices:", clientData.scopeOfServices);
 
         return true;
     }
 
-
+    console.log('clientData', clientData);
 
     // Function to send data to the server (or perform any other action you need)
     const sendDataToServer = (data) => {
@@ -488,7 +386,8 @@ const AddClient = () => {
             const serviceId = data.service_id;
             const isUpdated = updateServiceById(serviceId, updatedData);  // Update service with serviceId
             console.log("Update result:", isUpdated);  // Should log true if updated successfully
-            console.log("Updated clientData.scopeOfServices:", clientData.scopeOfServices);  // The updated scopeOfServices array (from clientData)
+            console.log("Updated clientData.scopeOfServices:", clientData.scopeOfServices);
+
         } else {
             console.log("No action was processed, data not sent.");
         }
@@ -503,68 +402,123 @@ const AddClient = () => {
         }));
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const payload2 = {
-            ...clientData,
-            branches, // Assuming branches is a state or variable holding branch details
-            date_agreement: date,// Converting selected package options to a comma-separated string
-            login_required: selectedOption, // Assuming this is the login_required value
-            scopeOfServices: {
-                ...filtredService // Assuming this contains filtered service details
-            },
-        };
-        console.log('payload', payload2);
-        return;
 
-        setApiError(""); // Clear any previous API errors
+    const validateRequiredFields = () => {
+        const requiredFields = [
+            "company_name", "client_code", "address", "state", "state_code", "gstin",
+            "tat", "date_agreement", "clientProcedure", "agreement_period", "custom_template",
+            "scopeOfServices", "mobile_number", "role", "client_standard", "client_spoc_id",
+            "escalation_manager_id", "billing_spoc_id", "billing_escalation_id", "authorized_detail_id", "username",
+        ];
 
-        // Validate form before proceeding
+        const newErrors = {};
 
+        // Validate clientData fields
+        requiredFields.forEach(field => {
+            const fieldValue = clientData[field];
 
-        let fileNameWithTimestamp = "";
+            if (!fieldValue || (Array.isArray(fieldValue) && fieldValue.length === 0)) {
+                newErrors[field] = "This field is required";
+            }
+        });
 
-        try {
-            // Image compression options
-            const options = {
-                maxSizeMB: 1,
-                useWebWorker: true,
-                initialQuality: 1,
-            };
+        // Validate each branch's branch_email and branch_name
+        branches.forEach((branch, index) => {
+            if (!branch.branch_email) {
+                newErrors[`branch_email_${index}`] = "Branch email is required";
+            }
+            if (!branch.branch_name) {
+                newErrors[`branch_name_${index}`] = "Branch name is required";
+            }
+        });
 
-            // Compress client logo
-            const compressedFile = await imageCompression(clientData.client_logo, options);
-            const timestamp = Date.now();
-            fileNameWithTimestamp = `${timestamp}_${compressedFile.name}`;
-        } catch (error) {
-            console.error("Error compressing or uploading image:", error);
-            setApiError("Failed to upload image.");
-            return; // Exit if image compression fails
+        // Validate emails
+        if (!emails || emails.length === 0) {
+            newErrors.emails = "At least one email is required";
+        } else {
+            emails.forEach((email, index) => {
+                // Check for valid email format using regex
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(email)) {
+                    newErrors[`email_${index}`] = "Invalid email format";
+                }
+            });
         }
 
-        // Create the payload with 'scopeOfServices' as a nested object
-        const payload = {
-            ...clientData,
-            branches, // Assuming branches is a state or variable holding branch details
-            date_agreement: date,// Converting selected package options to a comma-separated string
-            login_required: selectedOption, // Assuming this is the login_required value
-            client_logo: fileNameWithTimestamp,
-            scopeOfServices: {
-                ...filtredService // Assuming this contains filtered service details
-            },
-        };
+        setErrors(newErrors);
+        return newErrors;
+    };
+
+
+
+    console.log('errors', errors)
+
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();  // Prevent form submission immediately
+
+        // Run validation and get errors
+        let validationErrors = validateRequiredFields();
+
+        // If there are validation errors, show an alert and stop submission
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            return;  // Stop submission if there are validation errors
+        }
 
         try {
-            // Submit the form data via POST request
-            const response = await axios.post("https://screeningstar.onrender.com/Screeningstar/clients", payload, {
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${storedToken}`, // Assuming storedToken is the token retrieved from localStorage
-                },
+            // Retrieve necessary data from localStorage
+            const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
+            const storedToken = localStorage.getItem("_token");
+
+            // Prepare the payload with all necessary data
+            const payload2 = JSON.stringify({
+                admin_id: admin_id,
+                _token: storedToken,
+                ...clientData,
+                branches,  // Assuming branches is a state or variable holding branch details
+                emails,   // Ensure `date` is correctly defined or passed in
+                additional_login: selectedOption, // Assuming this is the additional_login value
             });
 
-            // Reset the form fields after successful submission
+            // Set up request headers
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+
+            // Define the request options
+            const requestOptions = {
+                method: "POST",
+                headers: myHeaders,
+                body: payload2,
+                redirect: "follow",
+            };
+
+            // Make the API call
+            const response = await fetch("https://screeningstar-new.onrender.com/customer/create", requestOptions);
+
+            // Check if the response is successful
+            if (!response.ok) {
+                throw new Error('Failed to submit the form');
+            }
+
+            // Handle the response
+            const result = await response.json();
+            Swal.fire('success', result.message)
+            const customerInsertId = result.data.customerId; // Ensure the result structure is correct
+            const password = result.password; // Similarly, ensure password is returned from the result
+            alert(customerInsertId, password)
+            // If the response includes a new token, store it
+            const newToken = result.token || result._token || '';
+            if (newToken) {
+                localStorage.setItem("_token", newToken);
+            }
+
+            // Proceed with uploading the logo or any other necessary action
+            uploadCustomerLogo(admin_id, storedToken, customerInsertId, password);
+            console.log('result', result);
+
+
+            // Reset the form data after successful submission
             setClientData({
                 company_name: "",
                 client_code: "",
@@ -573,30 +527,35 @@ const AddClient = () => {
                 state_code: "",
                 gstin: "",
                 tat: "",
-                emails: "",
                 date_agreement: "",
                 clientProcedure: "",
                 agreement_period: "",
                 custom_template: "",
-                client_logo: "",
                 scopeOfServices: [],
-                phone: "",
+                mobile_number: "",
                 role: "",
-                standard_process: "",
+                client_standard: "",
                 username: "",
             });
 
-            setSelected([]); // Clear package options
+            setSelected([]); // Clear selected package options
             setBranches([{ branch_email: "", branch_name: "" }]); // Reset branches
             setDate(null); // Reset service agreement date
             setSelectedOption(null); // Reset login requirement option
             setFileName(""); // Reset file name
 
         } catch (error) {
-            console.error("Error submitting form:", error);
-            setApiError("Failed to submit data. Please try again."); // Display error message
+            // Handle error and set error state
+            console.error('Submission error:', error);
+            setApiError("There was an error submitting the form. Please try again.");
         }
+
+        // Clear any previous API errors
+        setApiError("");
     };
+
+
+
 
 
 
@@ -706,13 +665,13 @@ const AddClient = () => {
                         <label className="block mb-1 text-sm font-medium">Mobile Number</label>
                         <input
                             type="text"
-                            name="phone"
+                            name="mobile_number"
                             placeholder="Enter Mobile Number"
-                            value={clientData.phone}
+                            value={clientData.mobile_number}
                             onChange={handleChange}
-                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.phone ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.mobile_number ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                         />
-                        {errors.phone && <span className="text-red-500">{errors.phone}</span>}
+                        {errors.mobile_number && <span className="text-red-500">{errors.mobile_number}</span>}
                     </div>
                     <div>
                         <label className="block mb-1 text-sm font-medium">Email</label>
@@ -720,8 +679,8 @@ const AddClient = () => {
                             type="text"
                             name="emails"
                             placeholder="Enter Email"
-                            value={clientData.emails}
-                            onChange={handleChange}
+                            value={emails.emails}
+                            onChange={(e) => setemails([e.target.value])}
                             className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.emails ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                         />
                         {errors.emails && <span className="text-red-500">{errors.emails}</span>}
@@ -731,12 +690,15 @@ const AddClient = () => {
                 <div className="grid grid-cols-3 gap-4">
                     <div>
                         <label className="block mb-1 text-sm font-medium">Service Agreement Date</label>
-                        <DatePicker
-                            selected={date}
-                            onChange={(date) => setDate(date)}
+                        <input
+                            type="date"
+                            onChange={handleChange}
+                            value={clientData.date_agreement}
+                            name='date_agreement'
                             placeholderText="Select Service Agreement Date"
                             className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.date_agreement ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                         />
+                        {errors.date_agreement && <span className="text-red-500">{errors.date_agreement}</span>}
                     </div>
                     <div>
                         <label className="block mb-1 text-sm font-medium">TAT (Turnaround Time)</label>
@@ -798,7 +760,7 @@ const AddClient = () => {
 
                     <div>
                         <label className="block mb-1 text-sm font-medium">Client Logo</label>
-                        <input type="file" name="client_logo" onChange={handleChange} className="w-full rounded-md p-2.5 mb-[20px] border border-gray-300 bg-[#f7f6fb]" />
+                        <input type="file" name="logo" onChange={(e) => handleFileChange('logo', e)} className="w-full rounded-md p-2.5 mb-[20px] border border-gray-300 bg-[#f7f6fb]" />
                     </div>
                     <div>
                         <label className="block mb-1 text-sm font-medium">Role</label>
@@ -811,38 +773,43 @@ const AddClient = () => {
                     <div>
                         <label className="block mb-1 text-sm font-medium">Escalation Manager</label>
                         <SelectSearch
-                            options={escalation_manager}
-                            value={clientData.escalation_manager}
-                            name="escalation_manager"
+                            options={escalation_manager_id}
+                            value={clientData.escalation_manager_id}
+                            name="escalation_manager_id"
                             placeholder="Choose your language"
-                            onChange={(value) => handleChange({ target: { name: "escalation_manager", value } })}
+                            onChange={(value) => handleChange({ target: { name: "escalation_manager_id", value } })}
                             search
                         />
+                        {errors.escalation_manager_id && <span className="text-red-500">{errors.escalation_manager_id}</span>}
 
                     </div>
 
                     <div>
                         <label className="block mb-1 text-sm font-medium">Client Spoc</label>
                         <SelectSearch
-                            options={client_spocs}
-                            value={clientData.client_spoc}
-                            name="client_spoc"
+                            options={client_spoc_id}
+                            value={clientData.client_spoc_id}
+                            name="client_spoc_id"
                             placeholder="Choose your language"
-                            onChange={(value) => handleChange({ target: { name: "client_spoc", value } })}
+                            onChange={(value) => handleChange({ target: { name: "client_spoc_id", value } })}
                             search
                         />
+                        {errors.client_spoc_id && <span className="text-red-500">{errors.client_spoc_id}</span>}
+
                     </div>
 
                     <div>
                         <label className="block mb-1 text-sm font-medium">Billing Spoc</label>
                         <SelectSearch
-                            options={billing_spocs}
-                            value={clientData.billing_spoc}
-                            name="billing_spoc"
+                            options={billing_spoc_id}
+                            value={clientData.billing_spoc_id}
+                            name="billing_spoc_id"
                             placeholder="Choose your language"
-                            onChange={(value) => handleChange({ target: { name: "billing_spoc", value } })}
+                            onChange={(value) => handleChange({ target: { name: "billing_spoc_id", value } })}
                             search
                         />
+                        {errors.billing_spoc_id && <span className="text-red-500">{errors.billing_spoc_id}</span>}
+
                     </div>
                 </div>
 
@@ -850,26 +817,29 @@ const AddClient = () => {
                     <div>
                         <label className="block mb-1 text-sm font-medium">Billing Escalation</label>
                         <SelectSearch
-                            options={billing_escalation}
-                            value={clientData.billing_escalation}
-                            name="billing_escalation"
+                            options={billing_escalation_id}
+                            value={clientData.billing_escalation_id}
+                            name="billing_escalation_id"
                             placeholder="Choose your language"
-                            onChange={(value) => handleChange({ target: { name: "billing_escalation", value } })}
+                            onChange={(value) => handleChange({ target: { name: "billing_escalation_id", value } })}
                             search
                         />
+                        {errors.billing_escalation_id && <span className="text-red-500">{errors.billing_escalation_id}</span>}
+
                     </div>
 
                     <div>
                         <label className="block mb-1 text-sm font-medium">Authorized Details</label>
 
                         <SelectSearch
-                            options={authorizedDetails}
-                            value={clientData.authorizedPerson}
-                            name="authorizedPerson"
+                            options={authorized_detail_id}
+                            value={clientData.authorized_detail_id}
+                            name="authorized_detail_id"
                             placeholder="Choose your language"
-                            onChange={(value) => handleChange({ target: { name: "authorizedPerson", value } })}
+                            onChange={(value) => handleChange({ target: { name: "authorized_detail_id", value } })}
                             search
                         />
+                        {errors.authorized_detail_id && <span className="text-red-500">{errors.billing_escalation_id}</span>}
 
                     </div>
                 </div>
@@ -878,13 +848,13 @@ const AddClient = () => {
                         <label className="block mb-1 text-sm font-medium">Login Required Option</label>
                         <select
                             onChange={(e) => setSelectedOption(e.target.value)}
-                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.login_required ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.additional_login ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                         >
                             <option value="">Login Required Option</option>
                             <option value="yes">Yes</option>
                             <option value="no">No</option>
                         </select>
-                        {errors.login_required && <span className="text-red-500">{errors.login_required}</span>}
+                        {errors.additional_login && <span className="text-red-500">{errors.additional_login}</span>}
                     </div>
 
                     {/* Conditionally render the username input when "yes" is selected */}
@@ -906,13 +876,13 @@ const AddClient = () => {
                         <label className="block mb-1 text-sm font-medium">Standard Process</label>
                         <input
                             type="text"
-                            name="standard_process"
+                            name="client_standard"
                             placeholder="Enter Standard Process"
-                            value={clientData.standard_process}
+                            value={clientData.client_standard}
                             onChange={handleChange}
-                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.standard_process ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.client_standard ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                         />
-                        {errors.standard_process && <span className="text-red-500">{errors.standard_process}</span>}
+                        {errors.client_standard && <span className="text-red-500">{errors.client_standard}</span>}
                     </div>
                 </div>
                 <div className="">
@@ -926,11 +896,15 @@ const AddClient = () => {
                                     onChange={(event) => handleInputChange(index, event)}
                                     placeholder="Branch Email"
                                     className="border w-full rounded-md p-2.5 mb-[20px]"
-                                    required
+
                                 />
+                                {errors[`branch_email_${index}`] && <span className="text-red-500">{errors[`branch_email_${index}`]}</span>}
+
                             </div>
-                            <div className="flex w-1/2 items-center">
-                                <input type="text" name="branch_name" value={branch.branch_name} onChange={(event) => handleInputChange(index, event)} placeholder="Branch Name" className="border w-full rounded-md p-2.5 mb-[20px]" required />
+                            <div className="flex w-1/2 items-start gap-2">
+                                <div> <input type="text" name="branch_name" value={branch.branch_name} onChange={(event) => handleInputChange(index, event)} placeholder="Branch Name" className="border w-full rounded-md p-2.5 mb-[20px]" />
+                                    {errors[`branch_name_${index}`] && <span className="text-red-500">{errors[`branch_name_${index}`]}</span>}</div>
+
                                 <button type="button" onClick={() => removeBranch(index)} className="bg-red-500 text-white p-2.5 mb-[20px] rounded">
                                     Remove
                                 </button>
@@ -1012,6 +986,7 @@ const AddClient = () => {
                                                             value={priceData[service.service_id]?.pricingPackages || ""}
                                                             onChange={(e) => handlePriceChange(e, service.service_id)}
                                                             className='outline-none'
+                                                            disabled={!selectedServices[service.service_id]}
                                                             onBlur={(e) => handlePriceChange(e, service.service_id)}  // Send on blur/focus out
                                                         />
                                                     </td>
@@ -1024,6 +999,8 @@ const AddClient = () => {
                                                             })) || []}
                                                             onChange={(selectedList) => handlePackageChange(selectedList, service.service_id)}
                                                             labelledBy="Select"
+                                                            disabled={!selectedServices[service.service_id]} // Enable if service is selected
+
                                                             className='uppercase'
                                                         />
                                                     </td>

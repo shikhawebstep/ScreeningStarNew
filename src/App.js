@@ -57,6 +57,8 @@ import CandidateManager from "./Components/UserPages/CandidateManager.js";
 import ClientManager from "./Components/UserPages/ClientManager.js";
 import DataTable from "./Components/UserPages/innerpages/MasterTable.js";
 import UserHeader from "./Components/UserPages/userHeader.js";
+import { ClientProvider } from "./Components/Pages/ClientContext.js";
+import EditClient from "./Components/Pages/EditClient.js";
 
 const Layout = () => {
   const location = useLocation();
@@ -69,7 +71,7 @@ const Layout = () => {
       <div className="flex flex-col h-screen">
         {!hideSidebarAndHeader && (
           <>
-            {isUserRoute && !isAdminRoute  && <UserHeader />}
+            {isUserRoute && !isAdminRoute && <UserHeader />}
             {isAdminRoute && !isUserRoute && <AdminHeader />}
           </>
         )}
@@ -84,73 +86,77 @@ const Layout = () => {
             {!hideSidebarAndHeader && <Submenu />}
             <Routes>
 
-          
-            <Route path="/userLogin" element={<UserLogin />} />
-            <Route path="/" element={<LoginCheck><Dashboard /></LoginCheck>} />
-            <Route path="/admin-login" element={<AdminLogin />} />
-            <Route path="/admin-add-new-client" element={<LoginCheck><AddClient /></LoginCheck>} />
-            <Route path="/admin-screeningstar-admin" element={<LoginCheck><ScreeningstarAdmin /></LoginCheck>} />
-            <Route path="/admin-create-invoice" element={<LoginCheck><CreateInvoice /></LoginCheck>} />
-            <Route path="/admin-admin-manager" element={<LoginCheck><AdminManager /></LoginCheck>} />
-            <Route path="/admin-report-master" element={<LoginCheck><ReportMaster /></LoginCheck>} />
-            <Route path="/admin-client-credentials" element={<LoginCheck><ClientCredentials /></LoginCheck>} />
-            <Route path="/admin-tat-reminder" element={<LoginCheck><TATReminder /></LoginCheck>} />
-            <Route path="/admin-acknowledgement" element={<LoginCheck><Acknowledgement /></LoginCheck>} />
-            <Route path="/admin-createUser" element={<LoginCheck><CreateUser /></LoginCheck>} />
-            <Route path="/admin-client-spoc" element={<LoginCheck><ClientSpoc /></LoginCheck>} />
-            <Route path="/admin-escalation-manager" element={<LoginCheck><EscalationManager /></LoginCheck>} />
-            <Route path="/admin-billing-spoc" element={<LoginCheck><BillingSpoc /></LoginCheck>} />
-            <Route path="/admin-billing-esclation" element={<LoginCheck><BillingEscalation /></LoginCheck>} />
-            <Route path="/admin-authorized-details" element={<LoginCheck><AuthorizedDetails /></LoginCheck>} />
-            <Route path="/admin-active-account" element={<LoginCheck><ActiveAccounts /></LoginCheck>} />
-            <Route path="/admin-inactive-clients" element={<LoginCheck><InactiveClients /></LoginCheck>} />
-            <Route path="/admin-generate-invoice" element={<LoginCheck><GenerateInvoice /></LoginCheck>} />
-            <Route path="/admin-records-and-trackers" element={<LoginCheck><RecordTrackers /></LoginCheck>} />
-            <Route path="/admin-invoice-master" element={<LoginCheck><InvoiceMaster /></LoginCheck>} />
-            <Route path="/admin-existing-users" element={<LoginCheck><ExistingUsers /></LoginCheck>} />
-            <Route path="/admin-application-status" element={<LoginCheck><ApplicationStatus /></LoginCheck>} />
-            <Route path="/admin-chekin" element={<LoginCheck><AdminChekin /></LoginCheck>} />
-            <Route path="/admin-generate-report" element={<LoginCheck><GenerateReport /></LoginCheck>} />
-            <Route path="/form1" element={<LoginCheck><Form1 /></LoginCheck>} />
-            <Route path="/form2" element={<LoginCheck><Form2 /></LoginCheck>} />
-            <Route path="/form3" element={<LoginCheck><Form3 /></LoginCheck>} />
-            <Route path="/admin-editUser/:userId" element={<LoginCheck><EditUser /></LoginCheck>} />
-            <Route path="/admin-prepare-report" element={<LoginCheck><PrepareReport /></LoginCheck>} />
-            <Route path="/admin-service-management" element={<LoginCheck><ServiceManagement /></LoginCheck>} />
-            <Route path="/admin-package-management" element={<LoginCheck><PackageManagement /></LoginCheck>} />
-            <Route path="/admin-data-management" element={<LoginCheck><DataManagement /></LoginCheck>} />
-            <Route path="/admin-team-management" element={<LoginCheck><TeamManagment /></LoginCheck>} />
-            <Route path="/admin-clienttable" element={<LoginCheck><ClientManagementData /></LoginCheck>} />
+
+              <Route path="/userLogin" element={<UserLogin />} />
+              <Route path="/" element={<LoginCheck><Dashboard /></LoginCheck>} />
+              <Route path="/admin-login" element={<AdminLogin />} />
+              <Route path="/admin-add-new-client" element={<LoginCheck><AddClient /></LoginCheck>} />
+              <Route path="/admin-editclient" element={<LoginCheck><EditClient /></LoginCheck>} />
+              <Route path="/admin-screeningstar-admin" element={<LoginCheck><ScreeningstarAdmin /></LoginCheck>} />
+              <Route path="/admin-create-invoice" element={<LoginCheck><CreateInvoice /></LoginCheck>} />
+              <Route path="/admin-admin-manager" element={<LoginCheck><AdminManager /></LoginCheck>} />
+              <Route path="/admin-report-master" element={<LoginCheck><ReportMaster /></LoginCheck>} />
+              <Route path="/admin-client-credentials" element={<LoginCheck><ClientCredentials /></LoginCheck>} />
+              <Route path="/admin-tat-reminder" element={<LoginCheck><TATReminder /></LoginCheck>} />
+              <Route path="/admin-acknowledgement" element={<LoginCheck><Acknowledgement /></LoginCheck>} />
+              <Route path="/admin-createUser" element={<LoginCheck><CreateUser /></LoginCheck>} />
+              <Route path="/admin-client-spoc" element={<LoginCheck><ClientSpoc /></LoginCheck>} />
+              <Route path="/admin-escalation-manager" element={<LoginCheck><EscalationManager /></LoginCheck>} />
+              <Route path="/admin-billing-spoc" element={<LoginCheck><BillingSpoc /></LoginCheck>} />
+              <Route path="/admin-billing-esclation" element={<LoginCheck><BillingEscalation /></LoginCheck>} />
+              <Route path="/admin-authorized-details" element={<LoginCheck><AuthorizedDetails /></LoginCheck>} />
+              <Route path="/admin-active-account" element={<LoginCheck><ActiveAccounts /></LoginCheck>} />
+              <Route path="/admin-inactive-clients" element={<LoginCheck><InactiveClients /></LoginCheck>} />
+              <Route path="/admin-generate-invoice" element={<LoginCheck><GenerateInvoice /></LoginCheck>} />
+              <Route path="/admin-records-and-trackers" element={<LoginCheck><RecordTrackers /></LoginCheck>} />
+              <Route path="/admin-invoice-master" element={<LoginCheck><InvoiceMaster /></LoginCheck>} />
+              <Route path="/admin-existing-users" element={<LoginCheck><ExistingUsers /></LoginCheck>} />
+              <Route path="/admin-application-status" element={<LoginCheck><ApplicationStatus /></LoginCheck>} />
+              <Route path="/admin-chekin" element={<LoginCheck><AdminChekin /></LoginCheck>} />
+              <Route path="/admin-generate-report" element={<LoginCheck><GenerateReport /></LoginCheck>} />
+              <Route path="/form1" element={<LoginCheck><Form1 /></LoginCheck>} />
+              <Route path="/form2" element={<LoginCheck><Form2 /></LoginCheck>} />
+              <Route path="/form3" element={<LoginCheck><Form3 /></LoginCheck>} />
+              <Route path="/admin-editUser/:userId" element={<LoginCheck><EditUser /></LoginCheck>} />
+              <Route path="/admin-prepare-report" element={<LoginCheck><PrepareReport /></LoginCheck>} />
+              <Route path="/admin-service-management" element={<LoginCheck><ServiceManagement /></LoginCheck>} />
+              <Route path="/admin-package-management" element={<LoginCheck><PackageManagement /></LoginCheck>} />
+              <Route path="/admin-data-management" element={<LoginCheck><DataManagement /></LoginCheck>} />
+              <Route path="/admin-team-management" element={<LoginCheck><TeamManagment /></LoginCheck>} />
+              <Route path="/admin-clienttable" element={<LoginCheck><ClientManagementData /></LoginCheck>} />
 
 
-            <Route path="/user-dashboard" element={<UserDashboard />} />
-            <Route path="/user-create" element={<UserCreate />} />
-            <Route path="/user-candidateManager" element={<CandidateManager />} />
-            <Route path="/user-verificationStatus" element={<VerificationStatus />} />
-            <Route path="/user-bulkApplication" element={<BulkApplication />} />
-            <Route path="/user-checklistAndEscalation" element={<ChecklistAndEscalation />} />
-            <Route path="/user-MasterDashboard" element={<MasterDashboard />} />
-            <Route path="/user-createTickets" element={<CreateTickets />} />
-            <Route path="/user-ApiIntegration" element={<ApiIntegration />} />
-            <Route path="/user-ClientManager" element={<ClientManager />} />
-            <Route path="/user-DataTable" element={<DataTable />} />
+              <Route path="/user-dashboard" element={<UserDashboard />} />
+              <Route path="/user-create" element={<UserCreate />} />
+              <Route path="/user-candidateManager" element={<CandidateManager />} />
+              <Route path="/user-verificationStatus" element={<VerificationStatus />} />
+              <Route path="/user-bulkApplication" element={<BulkApplication />} />
+              <Route path="/user-checklistAndEscalation" element={<ChecklistAndEscalation />} />
+              <Route path="/user-MasterDashboard" element={<MasterDashboard />} />
+              <Route path="/user-createTickets" element={<CreateTickets />} />
+              <Route path="/user-ApiIntegration" element={<ApiIntegration />} />
+              <Route path="/user-ClientManager" element={<ClientManager />} />
+              <Route path="/user-DataTable" element={<DataTable />} />
 
-          </Routes>
+            </Routes>
+          </div>
         </div>
       </div>
     </div>
-  </div>
   );
 };
 
 const App = () => {
   return (
-   
-     <SidebarProvider>
-    <Router basename="/demo/screening">
-      <Layout />
-    </Router>
+
+    <SidebarProvider>
+      <ClientProvider>
+        <Router basename="/demo/screening">
+          <Layout />
+        </Router>
+      </ClientProvider>
     </SidebarProvider>
+
   );
 };
 

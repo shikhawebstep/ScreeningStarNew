@@ -1,41 +1,57 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { useClientContext } from "./ClientContext";
+import { useNavigate } from 'react-router-dom';
+
 const ActiveAccounts = () => {
+  const navigate = useNavigate();
   const [activeList, setActiveList] = useState([]);
-  const [selectedClient, setSelectedClient] = useState(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const storedToken = localStorage.getItem('token');
+  const { selectedClient, setSelectedClient} = useClientContext();
+  const [expandedServices, setExpandedServices] = useState({});
+  const [errors, setErrors] = useState({});
+
+  const storedToken = localStorage.getItem('_token'); // Ensure the token is stored correctly
+  const maxVisibleServices = 1;
+
+  const toggleExpanded = (serviceIndex) => {
+    setExpandedServices((prevState) => ({
+      ...prevState,
+      [serviceIndex]: !prevState[serviceIndex], // Toggle the expansion for this specific serviceIndex
+    }));
+  };
+
   useEffect(() => {
     const fetchActiveAccounts = async () => {
       const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
-      const storedToken = localStorage.getItem("_token");
-    
-      if (!storedToken) {
-        console.error("No token found. Please log in.");
+
+      if (!admin_id || !storedToken) {
+        console.error("Admin ID or token not found. Please log in.");
         return;
       }
-    
+
       try {
         const response = await fetch(`https://screeningstar-new.onrender.com/customer/list?admin_id=${admin_id}&_token=${storedToken}`, {
           method: "GET",
           redirect: "follow"
         });
-    
+
         if (!response.ok) {
           throw new Error(`Error: ${response.status} ${response.statusText}`);
         }
-    
-        const result = await response.text();
-        console.log(result);
+
+        const result = await response.json();
+        const newToken = result.token || result._token;
+        if (newToken) {
+          localStorage.setItem('_token', newToken);
+        }
+        setActiveList(result.customers);
       } catch (error) {
         console.error("Failed to fetch active accounts:", error);
       }
     };
-    
 
     fetchActiveAccounts();
-  }, [storedToken]);
-
+  }, [storedToken]); // Only run effect when storedToken changes or is initially available
 
   const handleBlock = async (id) => {
     if (window.confirm('Are you sure you want to block this client?')) {
@@ -43,7 +59,6 @@ const ActiveAccounts = () => {
         await axios.put(
           `https://screeningstar.onrender.com/Screeningstar/clients/status/${id}`,
           { status: 'inactive' },
-
           {
             headers: {
               'Authorization': `Bearer ${storedToken}`,
@@ -59,7 +74,6 @@ const ActiveAccounts = () => {
       }
     }
   };
-
 
   const handleDelete = async (id) => {
     const confirmDelete = window.confirm("Are you sure you want to delete this client?");
@@ -89,43 +103,8 @@ const ActiveAccounts = () => {
   };
 
   const handleEdit = (client) => {
+    navigate('/admin-editclient');
     setSelectedClient(client);
-    setIsEditing(true);
-  };
-
-  const handleFormSubmit = async (updatedClient) => {
-    try {
-      const response = await fetch(`https://screeningstar.onrender.com/Screeningstar/clients/${updatedClient.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedToken}`
-        },
-        body: JSON.stringify(updatedClient),
-      });
-
-      if (response.ok) {
-        setActiveList(prevList => prevList.map(client =>
-          client.id === updatedClient.id ? updatedClient : client
-        ));
-        alert("Client successfully updated.");
-      } else {
-        const errorText = await response.text();
-        console.error("Failed to update client:", errorText);
-        alert("Failed to update client. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error updating client:", error);
-      alert("An error occurred while trying to update the client.");
-    } finally {
-      setIsEditing(false);
-      setSelectedClient(null);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setIsEditing(false);
-    setSelectedClient(null);
   };
 
   return (
@@ -134,240 +113,123 @@ const ActiveAccounts = () => {
         <h2 className="text-2xl font-bold py-3 text-left text-[#4d606b] px-3 borde">ACTIVE CLIENTS</h2>
       </div>
 
-      {isEditing ? (
-        <EditForm client={selectedClient} onSubmit={handleFormSubmit} onCancel={handleCancelEdit} />
-      ) : (
-        <div className=" border space-y-4 py-[30px] px-[51px] bg-white">
-          <div className="rounded-lg overflow-scroll">
-            <table className="min-w-full border-collapse border  rounded-lg ">
-              <thead className='rounded-lg'>
-                <tr className="bg-[#c1dff2] text-[#4d606b]  whitespace-nowrap">
-                  <th className="border  px-4 py-2">SL</th>
-                  <th className="border  px-4 py-2">Client ID</th>
-                  <th className="border  px-4 py-2">Organization Name</th>
-                  <th className="border  px-4 py-2">Registered Address</th>
-                  <th className="border  px-4 py-2">Email</th>
-                  <th className="border  px-4 py-2">State</th>
-                  <th className="border  px-4 py-2">State Code</th>
-                  <th className="border  px-4 py-2">GST Number</th>
-                  <th className="border  px-4 py-2">Mobile Number</th>
-                  <th className="border  px-4 py-2">TAT</th>
-                  <th className="border  px-4 py-2">Date of Service Agreement</th>
-                  <th className="border  px-4 py-2">Standard Process</th>
-                  <th className="border  px-4 py-2">Agreement Period</th>
-                  <th className="border  px-4 py-2">Custom Template</th>
-                  <th className="border  px-4 py-2">Upload Client logo</th>
-                  <th className="border  px-4 py-2">Account Management</th>
-                  <th className="border  px-4 py-2">Package Options</th>
-                  <th className="border  px-4 py-2">Scope of Services</th>
-                  <th className="border  px-4 py-2">Pricing Packages</th>
-                  <th className="border  px-4 py-2">Additional login required?</th>
-                  <th className="border  px-4 py-2">Created At</th>
-                  <th className="border  px-4 py-2">Updated At</th>
-                  <th className="border  px-4 py-2" colSpan={2}>Action</th>
+      <div className="border space-y-4 py-[30px] px-[51px] bg-white">
+        <div className="rounded-lg overflow-scroll">
+          <table className="min-w-full border-collapse border rounded-lg">
+            <thead className='rounded-lg'>
+              <tr className="bg-[#c1dff2] text-[#4d606b] whitespace-nowrap">
+                <th className="border px-4 py-2">SL</th>
+                <th className="border px-4 py-2">Client ID</th>
+                <th className="border px-4 py-2">Organization Name</th>
+                <th className="border px-4 py-2">Registered Address</th>
+                <th className="border px-4 py-2">Email</th>
+                <th className="border px-4 py-2">State</th>
+                <th className="border px-4 py-2">State Code</th>
+                <th className="border px-4 py-2">GST Number</th>
+                <th className="border px-4 py-2">Mobile Number</th>
+                <th className="border px-4 py-2">TAT</th>
+                <th className="border px-4 py-2">Date of Agreement</th>
+                <th className="border px-4 py-2">Standard Process</th>
+                <th className="border px-4 py-2">Agreement Period</th>
+                <th className="border px-4 py-2">Custom Template</th>
+                <th className="border px-4 py-2">Upload Client logo</th>
+                <th className="border px-4 py-2">Scope of Services</th>
+                <th className="border px-4 py-2">Additional login required?</th>
+                <th className="border px-4 py-2">Created At</th>
+                <th className="border px-4 py-2">Updated At</th>
+                <th className="border px-4 py-2" colSpan={2}>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activeList.length === 0 ? (
+                <tr>
+                  <td colSpan="21" className="text-center py-4 text-gray-500">
+                    You have no data.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {activeList.length === 0 ? (
-                  <tr>
-                    <td colSpan="21" className="text-center py-4 text-gray-500">
-                      You have no data.
-                    </td>
-                  </tr>
-                ) : (
-                  activeList.map((client, index) => (
-                    <tr key={client.clientId} className='text-center'>
-                      <td className="border  px-4 py-2">{index + 1}</td>
-                      <td className="border  px-4 py-2">{client.clientId}</td>
-                      <td className="border  px-4 py-2 min-w-[200px]">{client.organizationName}</td>
-                      <td className="border  px-4 py-2">{client.registeredAddress}</td>
-                      <td className="border  px-4 py-2">{client.email}</td>
-                      <td className="border  px-4 py-2">{client.state}</td>
-                      <td className="border  px-4 py-2">{client.stateCode}</td>
-                      <td className="border  px-4 py-2 min-w-[200px]">{client.gstNumber}</td>
-                      <td className="border  px-4 py-2 min-w-[200px]">{client.mobileNumber}</td>
-                      <td className="border  px-4 py-2">{client.tat}</td>
-                      <td className="border  px-4 py-2 min-w-[300px]">{client.serviceAgreementDate}</td>
-                      <td className="border  px-4 py-2 min-w-[300px]">{client.clientProcedure}</td>
-                      <td className="border  px-4 py-2">{client.agreementPeriod}</td>
-                      <td className="border  px-4 py-2">{client.customTemplate}</td>
-                      <td className="border  px-4 py-2">
-                        <img src={`../../imgs/${client.clientLogo}`} alt="Client Logo" />
+              ) : (
+                activeList.map((client, index) => {
+                  const services = client.services ? JSON.parse(client.services).flatMap(group => group.services) : [];
+
+                  return (
+                    <tr key={client.clientId} className="text-center border-b border-gray-300">
+                      <td className="border px-4 py-2">{index + 1}</td>
+                      <td className="border px-4 py-2">{client.client_unique_id}</td>
+                      <td className="border px-4 py-2 min-w-[200px]">{client.name}</td>
+                      <td className="border px-4 py-2">{client.address}</td>
+                      <td className="border px-4 py-2">{client.emails ? JSON.parse(client.emails).join(', ') : 'NIL'}</td>
+                      <td className="border px-4 py-2">{client.state}</td>
+                      <td className="border px-4 py-2">{client.state_code}</td>
+                      <td className="border px-4 py-2 min-w-[200px]">{client.gst_number}</td>
+                      <td className="border px-4 py-2 min-w-[200px]">{client.mobile}</td>
+                      <td className="border px-4 py-2">{client.tat_days}</td>
+
+                      {/* Agreement date */}
+                      <td className="border px-4 py-2 min-w-[300px]">
+                        {client.agreement
+                          ? new Date(client.agreement).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                          : 'NIL'}
                       </td>
-                      <td className="border  px-4 py-2">{client.accountManagement}</td>
-                      <td className="border  px-4 py-2">{client.packageOptions}</td>
-                      <td className="border  px-4 py-2">{client.scopeOfServices}</td>
-                      <td className="border  px-4 py-2">{client.pricingPackages}</td>
-                      <td className="border  px-4 py-2">{client.loginRequired}</td>
-                      <td className="border  px-4 py-2">{client.createdAt}</td>
-                      <td className="border  px-4 py-2">{client.updatedAt}</td>
-                      <td className="border  px-4 py-2 min-w-[300px]">
+
+                      <td className="border px-4 py-2 min-w-[300px]">{client.client_standard}</td>
+                      <td className="border px-4 py-2">{new Date(client.agreement_date).toLocaleDateString()}</td>
+                      <td className="border px-4 py-2">{client.custom_template || 'NIL'}</td>
+
+                      {/* Client logo */}
+                      <td className="border px-4 py-2">
+                        <img src={`https://screeningstar-new.onrender.com/${client.logo}`} alt="Client Logo" />
+                      </td>
+                      <td className="border px-4 py-2">
+                        {services.length > 0 ? (
+                          services.slice(0, expandedServices[index] ? services.length : maxVisibleServices).map((service, i) => (
+                            <div key={i} className="flex flex-col text-left border-b border-gray-300 pb-2 last:border-0">
+                              <span className="font-semibold text-gray-700">Service: {service.serviceTitle || 'N/A'}</span>
+                              <span className="text-gray-600">Price: {service.price || 'N/A'}</span>
+                              <span className="text-gray-600">
+                                Packages: {service.packages?.length > 0
+                                  ? service.packages.map((pkg, pkgIndex) => (
+                                    <span key={pkgIndex}>
+                                      {pkg.name}{pkgIndex < service.packages.length - 1 ? ', ' : ''}
+                                    </span>
+                                  ))
+                                  : 'No Packages'}
+                              </span>
+                            </div>
+                          ))
+                        ) : (
+                          <span className="text-center text-gray-500">No Services Available</span>
+                        )}
+
+                        {services.length > maxVisibleServices && (
+                          <button
+                            onClick={() => toggleExpanded(index)}
+                            className="text-blue-500 underline text-sm mt-2"
+                          >
+                            {expandedServices[index] ? 'View Less' : 'View More'}
+                          </button>
+                        )}
+                      </td>
+
+                      {/* Action buttons */}
+                      <td className="border px-4 py-2">{client.additional_login}</td>
+                      <td className="border px-4 py-2">{new Date(client.created_at).toLocaleDateString()}</td>
+                      <td className="border px-4 py-2">{new Date(client.updated_at).toLocaleDateString()}</td>
+
+                      {/* Action buttons */}
+                      <td className="border px-4 py-2 min-w-[300px]">
                         <button onClick={() => handleEdit(client)} className="bg-green-500 text-white px-4 py-2 rounded mr-3">Edit</button>
                         <button onClick={() => handleBlock(client.id)} className="bg-red-500 text-white px-4 py-2 rounded mr-3">Block</button>
                         <button onClick={() => handleDelete(client.id)} className="bg-[#073d88] text-white px-4 py-2 rounded">Delete</button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-
-            </table>
-          </div>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
-      )}
+      </div>
     </div>
-  );
-};
-
-// EditForm component to handle the editing of client details
-const EditForm = ({ client, onSubmit, onCancel }) => {
-  const [formData, setFormData] = useState({ ...client });
-
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSubmit(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
-      <h2 className="text-xl font-bold mb-4">Edit Client</h2>
-      <div className="space-y-4">
-        <input
-          type="text"
-          name="organizationName"
-          value={formData.organizationName}
-          onChange={handleChange}
-          placeholder="Organization Name"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="registeredAddress"
-          value={formData.registeredAddress}
-          onChange={handleChange}
-          placeholder="Registered Address"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="email"
-          name="email"
-          value={formData.email}
-          onChange={handleChange}
-          placeholder="Email"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="state"
-          value={formData.state}
-          onChange={handleChange}
-          placeholder="State"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="stateCode"
-          value={formData.stateCode}
-          onChange={handleChange}
-          placeholder="State Code"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="gstNumber"
-          value={formData.gstNumber}
-          onChange={handleChange}
-          placeholder="GST Number"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="mobileNumber"
-          value={formData.mobileNumber}
-          onChange={handleChange}
-          placeholder="Mobile Number"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="tat"
-          value={formData.tat}
-          onChange={handleChange}
-          placeholder="TAT"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="standardProcess"
-          value={formData.standardProcess}
-          onChange={handleChange}
-          placeholder="Standard Process"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="file"
-          name="clientLogo"
-          onChange={handleChange}
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <div>
-          <div><h4>{formData.clientLogo}</h4></div>
-        </div>
-        <input
-          type="text"
-          name="accountManagement"
-          value={formData.accountManagement}
-          onChange={handleChange}
-          placeholder="Account Management"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="packageOptions"
-          value={formData.packageOptions}
-          onChange={handleChange}
-          placeholder="Package Options"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="scopeOfServices"
-          value={formData.scopeOfServices}
-          onChange={handleChange}
-          placeholder="Scope of Services"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <input
-          type="text"
-          name="pricingPackages"
-          value={formData.pricingPackages}
-          onChange={handleChange}
-          placeholder="Pricing Packages"
-          className="w-full p-2 border border-gray-300 rounded"
-        />
-        <select
-          name="loginRequired"
-          value={formData.loginRequired}
-          onChange={handleChange}
-          className="w-full p-2 border border-gray-300 rounded"
-        >
-          <option value="">Additional login required?</option>
-          <option value="yes">Yes</option>
-          <option value="no">No</option>
-        </select>
-
-
-      </div>
-      <div className="mt-4">
-        <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded mr-2">Save</button>
-        <button type="button" onClick={onCancel} className="bg-gray-300 text-black px-4 py-2 rounded">Cancel</button>
-      </div>
-    </form>
   );
 };
 
