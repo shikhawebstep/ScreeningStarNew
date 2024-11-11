@@ -200,7 +200,7 @@ export const SidebarProvider = ({ children }) => {
       name: "Reset Password",
       icon: <FcKey className="mr-2 text-xl" />,
       key: "resetPassword",
-      href: "/admin-reset-password"
+      href: "/admin-update-password"
     }
   ];
 
@@ -282,7 +282,7 @@ export const SidebarProvider = ({ children }) => {
       name: "RESET PASSWORD",
       icon: <FcKey className="mr-2 text-xl" />,
       key: "RESET PASSWORD",
-      href: "user-dashboard" // Placeholder link
+      href: "/user-update-password" 
     }
   ];
   

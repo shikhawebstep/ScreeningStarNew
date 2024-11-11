@@ -34,21 +34,25 @@ const AdminHeader = () => {
 
   const handleSignout = async () => {
     try {
-      if (!storedToken) {
-        console.error('No token found');
+      const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+      const storedToken = localStorage.getItem("_token");
+  
+      if (!storedToken || !adminId) {
+        console.error('No token or admin_id found');
         return;
       }
-
-      const response = await fetch('https://screeningstar.onrender.com/Screeningstar/logout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedToken}`,
-        },
-      });
-
+  
+      const requestOptions = {
+        method: 'GET',
+        redirect: 'follow',
+      };
+  
+      const url = `https://screeningstar-new.onrender.com/admin/logout?admin_id=${adminId}&_token=${storedToken}`;
+  
+      const response = await fetch(url, requestOptions);
+  
       console.log(response);
-
+  
       if (response.ok) {
         localStorage.clear();
         navigate('/admin-login');
@@ -60,6 +64,7 @@ const AdminHeader = () => {
       console.error('An error occurred:', error);
     }
   };
+  
 
 
   const toggleDropdown = (dropdown) => {

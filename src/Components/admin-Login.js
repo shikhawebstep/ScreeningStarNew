@@ -6,6 +6,8 @@ import Logo from "../imgs/admin-logo.png";
 import Swal from "sweetalert2";
 import { useNavigate, useLocation } from "react-router-dom";
 import { FaEye, FaEyeSlash } from "react-icons/fa"; // Importing eye icons
+import { Link } from "react-router-dom";
+
 
 const AdminLogin = () => {
   const navigate = useNavigate();
@@ -50,50 +52,50 @@ const AdminLogin = () => {
       setError(validationErrors);
       return;
     }
-      const loginData = {
-        username: input.username,
-        password: input.password,
-      };
+    const loginData = {
+      username: input.username,
+      password: input.password,
+    };
 
-      axios.post(`https://screeningstar-new.onrender.com/admin/login`, loginData)
-        .then((response) => {
-          if (!response.data.status) {
-            Swal.fire({
-              title: 'Error!',
-              text: `An error occurred: ${response.data.message}`,
-              icon: 'error',
-              confirmButtonText: 'Ok'
-            });
-           
-          } else {
-
-            const adminData = response.data.adminData;
-            const _token = response.data.token;
-
-            localStorage.setItem('admin', JSON.stringify(adminData));
-            localStorage.setItem('_token', _token);
-            Swal.fire({
-              title: "Success",
-              text: 'Login Successfull',
-              icon: "success",
-              confirmButtonText: "Ok"
-            })
-            
-
-            navigate('/', { state: { from: location }, replace: true });
-            setError({});
-          }
-        })
-        .catch((error) => {
+    axios.post(`https://screeningstar-new.onrender.com/admin/login`, loginData)
+      .then((response) => {
+        if (!response.data.status) {
           Swal.fire({
             title: 'Error!',
-            text: `Error: ${error.response?.data?.message || error.message}`,
+            text: `An error occurred: ${response.data.message}`,
             icon: 'error',
             confirmButtonText: 'Ok'
           });
-        })
-      
-   
+
+        } else {
+
+          const adminData = response.data.adminData;
+          const _token = response.data.token;
+
+          localStorage.setItem('admin', JSON.stringify(adminData));
+          localStorage.setItem('_token', _token);
+          Swal.fire({
+            title: "Success",
+            text: 'Login Successfull',
+            icon: "success",
+            confirmButtonText: "Ok"
+          })
+
+
+          navigate('/', { state: { from: location }, replace: true });
+          setError({});
+        }
+      })
+      .catch((error) => {
+        Swal.fire({
+          title: 'Error!',
+          text: `Error: ${error.response?.data?.message || error.message}`,
+          icon: 'error',
+          confirmButtonText: 'Ok'
+        });
+      })
+
+
   };
 
   return (
@@ -145,7 +147,7 @@ const AdminLogin = () => {
                     className="absolute right-3 top-3 cursor-pointer"
                     onClick={() => setPasswordVisible(!passwordVisible)} // Toggle password visibility
                   >
-                    {passwordVisible ? <FaEyeSlash className="text-gray-400 mt-1 mr-1" /> : <FaEye FaEyeSlash className="text-gray-400 mt-1 mr-1"/>} {/* Show/hide icon */}
+                    {passwordVisible ? <FaEyeSlash className="text-gray-400 mt-1 mr-1" /> : <FaEye FaEyeSlash className="text-gray-400 mt-1 mr-1" />} {/* Show/hide icon */}
                   </span>
                   {error.password && (
                     <p className="text-red-500 text-xs italic">{error.password}</p>
@@ -153,8 +155,8 @@ const AdminLogin = () => {
                 </div>
                 <div className="md:flex-1 mb-3 w-full">
                   <button
-                  className="bg-pink-500 hover:bg-pink-700 text-white md:mb-0  font-bold md:py-3 md:px-4 py-2  rounded focus:outline-none focus:shadow-outline w-full"
-                    
+                    className="bg-pink-500 hover:bg-pink-700 text-white md:mb-0  font-bold md:py-3 md:px-4 py-2  rounded focus:outline-none focus:shadow-outline w-full"
+
                     type="submit"
                   >
                     Login
@@ -166,9 +168,16 @@ const AdminLogin = () => {
                   <input type="checkbox" className="mr-2 " />
                   Stay signed in
                 </label>
-                <span className="text-[#073d88] cursor-pointer text-[10px] md:text-base">
-                  Forgot password?
-                </span>
+                <Link
+                  to="/admin-forgot-password"
+                >
+                  <span className="text-[#073d88] cursor-pointer text-[10px] md:text-base">
+
+                    Forgot password?
+
+                  </span>
+
+                </Link>
               </div>
 
               {error.api && (
