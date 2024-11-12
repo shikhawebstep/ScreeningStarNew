@@ -20,27 +20,22 @@ const EditClient = () => {
     const [date, setDate] = useState(null);
     const [selectedOption, setSelectedOption] = useState(null);
     const [selected, setSelected] = useState([]);
+    const [errors, setErrors] = useState({});
     const [emails, setemails] = useState([]);
     const { client_spoc_id, AllSpocs, escalation_manager_id, billing_spoc_id, billing_escalation_id, authorized_detail_id, selectedClient, setSelectedClient } = useClientContext();
-
+   
     const memoizedAllSpocs = useCallback(() => {
         AllSpocs(); // Call the original AllSpocs function
     }, [AllSpocs]); // Only recreate this function if AllSpocs changes
-
+    
     useEffect(() => {
         memoizedAllSpocs(); // This will now run only once unless AllSpocs itself changes
-    }, [memoizedAllSpocs]);
-
-    console.log('selectedClient', selectedClient);
-    const clientSelectedServices = selectedClient?.services ? JSON.parse(selectedClient.services) : null;
-    const flattenedServices = clientSelectedServices.flatMap(group => group.services.map(service => ({
-        ...service,
-        groupId: group.group_id,
-        groupTitle: group.group_title
-    })));
-    console.log('flattenedServices - ', flattenedServices);
-
-    const [errors, setErrors] = useState({});
+    }, [memoizedAllSpocs]); 
+   
+  console.log('selectedClient',selectedClient)
+  const clientPreSelectedServicesRaw = selectedClient?.services ? JSON.parse(selectedClient.services) : null;
+  console.log(`clientPreSelectedServicesRaw - `, clientPreSelectedServicesRaw);
+   
 
     const handleChange = (e) => {
         const { name, value, type, files } = e.target;
@@ -98,7 +93,7 @@ const EditClient = () => {
     };
 
 
-
+   
 
 
     const fetchServices = useCallback(() => {
@@ -181,7 +176,7 @@ const EditClient = () => {
         setSelectedServices(prevSelectedServices => {
             const isSelected = prevSelectedServices[service_id];
             const newSelectedState = !isSelected; // Toggle checkbox state
-
+    
             // Update priceData and selectedPackages if deselecting
             if (!newSelectedState) {
                 setPriceData(prevPriceData => ({
@@ -193,7 +188,7 @@ const EditClient = () => {
                     [service_id]: []
                 }));
             }
-
+    
             // Send data to server after state update
             sendDataToServer({
                 group_id,
@@ -205,14 +200,14 @@ const EditClient = () => {
                 selected_packages: newSelectedState ? selected_packages : [], // Send empty if deselected
                 action: "checkbox_change"
             });
-
+    
             return {
                 ...prevSelectedServices,
                 [service_id]: newSelectedState
             };
         });
     };
-
+    
 
 
     // 2. Handle price change (focus in/out or typing in the price input)
@@ -263,17 +258,17 @@ const EditClient = () => {
 
     function updateServiceById(serviceId, updatedInfo, services = selectedClient.scopeOfServices) {
         console.log("Starting updateServiceById with serviceId:", serviceId, "and updatedInfo:", updatedInfo);
-
+    
         // Create a copy of services to avoid mutation
         const updatedServices = [...services];  // Shallow copy of services
-
+    
         for (let group of updatedServices) {
             console.log("Checking group:", group);
-
+    
             if (group.services) {
                 const service = group.services.find(service => service.serviceId === serviceId);
                 console.log("Found service:", service);
-
+    
                 if (service) {
                     // Update the fields in the service object with the values in updatedInfo
                     Object.assign(service, updatedInfo);
@@ -286,10 +281,10 @@ const EditClient = () => {
                 }
             }
         }
-
+    
         // If service is not found, create a new service and add it to the appropriate group
         console.log("Service not found with serviceId:", serviceId);
-
+    
         const newService = {
             serviceId,
             serviceTitle: updatedInfo.serviceTitle || '',
@@ -297,7 +292,7 @@ const EditClient = () => {
             packages: updatedInfo.packages || []  // Assuming updatedInfo includes packages
         };
         console.log("Adding new service:", newService);
-
+    
         // Add the new service to the correct group
         const groupIndex = updatedServices.findIndex(group => group.group_id === updatedInfo.group_id);
         if (groupIndex !== -1) {
@@ -312,18 +307,18 @@ const EditClient = () => {
                 services: [newService]
             });
         }
-
+    
         // Update the selectedClient.scopeOfServices directly with a new copy
         setSelectedClient((prev) => ({
             ...prev,
             scopeOfServices: updatedServices
         }));
-
+    
         console.log("Updated selectedClient.scopeOfServices:", updatedServices);
-
+    
         return true;
     }
-
+    
     console.log('selectedClient', selectedClient);
 
     // Function to send data to the server (or perform any other action you need)
@@ -375,7 +370,7 @@ const EditClient = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
+        
     };
 
     return (
@@ -700,7 +695,7 @@ const EditClient = () => {
                     {errors.client_standard && <span className="text-red-500">{errors.client_standard}</span>}
                 </div>
             </div>
-
+            
             <div className="clientserviceTable">
 
                 <div className="overflow-x-auto py-6 px-0 bg-white mt-10 m-auto">
@@ -715,87 +710,87 @@ const EditClient = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {services.reduce((acc, item, index) => {
-                                const isSameGroup = index > 0 && item.group_title === services[index - 1].group_title;
-
-                                if (item.services.length > 0) {
-                                    if (!isSameGroup) {
-                                        acc.push(
-                                            <tr key={`group-${item.group_id}`} className='bg-[#c1dff2] text-[#4d606b]'>
-                                                <th className="py-2 md:py-3 px-4 border-r border-b text-center uppercase whitespace-nowrap">
-                                                    {item.symbol}
-                                                </th>
-                                                <th colSpan={4} className="py-2 md:py-3 px-4 border-r border-b text-center uppercase whitespace-nowrap">
-                                                    {item.group_title}
-                                                </th>
-                                            </tr>
-                                        );
-                                    }
-
-                                    item.services.forEach((service, serviceIndex) => {
-                                        const serviceNumber = serviceIndex + 1;
-
-                                        acc.push(
-                                            <tr key={`${item.group_id}-${service.service_id}`}>
-                                                <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap"></td>
-                                                <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap">
-                                                    {item.symbol} {serviceNumber}
-                                                </td>
-                                                <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap">
-                                                    <div key={service.service_id}>
-                                                        <input
-                                                            type="checkbox"
-                                                            id={`scope_${service.service_id}`}
-                                                            name="scopeOfServices"
-                                                            checked={selectedServices[service.service_id] || false}
-                                                            onChange={() => handleCheckboxChange({
-                                                                group_id: item.group_id,
-                                                                group_symbol: item.symbol,
-                                                                group_name: item.group_title,
-                                                                service_id: service.service_id,
-                                                                service_name: service.service_title,
-                                                                price: priceData[service.service_id]?.pricingPackages || '',
-                                                                selected_packages: selectedPackages[service.service_id] || []
-                                                            })}
-                                                            className="mr-2"
-                                                        />
-                                                        <label htmlFor={`scope_${service.service_id}`} className="ml-2">{service.service_title}</label>
-                                                    </div>
-                                                </td>
-
-                                                <td className="py-2 md:py-3 px-4 border-r border-b whitespace-nowrap">
-                                                    <input
-                                                        type="number"
-                                                        name="pricingPackages"
-                                                        value={priceData[service.service_id]?.pricingPackages || ""}
-                                                        onChange={(e) => handlePriceChange(e, service.service_id)}
-                                                        className='outline-none'
-                                                        disabled={!selectedServices[service.service_id]}
-                                                        onBlur={(e) => handlePriceChange(e, service.service_id)}  // Send on blur/focus out
-                                                    />
-                                                </td>
-                                                <td className="py-2 md:py-3 px-4 border-r border-b whitespace-nowrap uppercase text-left">
-                                                    <MultiSelect
-                                                        options={packageList.map(pkg => ({ value: pkg.id, label: pkg.title }))}
-                                                        value={selectedPackages[service.service_id]?.map(pkgId => ({
-                                                            value: pkgId,
-                                                            label: packageList.find(pkg => pkg.id === pkgId)?.title
-                                                        })) || []}
-                                                        onChange={(selectedList) => handlePackageChange(selectedList, service.service_id)}
-                                                        labelledBy="Select"
-                                                        disabled={!selectedServices[service.service_id]} // Enable if service is selected
-                                                        className='uppercase'
-                                                    />
-                                                </td>
-
-                                            </tr>
-                                        );
-                                    });
+                        {services.reduce((acc, item, index) => {
+                            const isSameGroup = index > 0 && item.group_title === services[index - 1].group_title;
+        
+                            if (item.services.length > 0) {
+                                if (!isSameGroup) {
+                                    acc.push(
+                                        <tr key={`group-${item.group_id}`} className='bg-[#c1dff2] text-[#4d606b]'>
+                                            <th className="py-2 md:py-3 px-4 border-r border-b text-center uppercase whitespace-nowrap">
+                                                {item.symbol}
+                                            </th>
+                                            <th colSpan={4} className="py-2 md:py-3 px-4 border-r border-b text-center uppercase whitespace-nowrap">
+                                                {item.group_title}
+                                            </th>
+                                        </tr>
+                                    );
                                 }
-
-                                return acc;
-                            }, [])}
-                        </tbody>
+        
+                                item.services.forEach((service, serviceIndex) => {
+                                    const serviceNumber = serviceIndex + 1;
+        
+                                    acc.push(
+                                        <tr key={`${item.group_id}-${service.service_id}`}>
+                                            <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap"></td>
+                                            <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap">
+                                                {item.symbol} {serviceNumber}
+                                            </td>
+                                            <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap">
+                                                <div key={service.service_id}>
+                                                    <input
+                                                        type="checkbox"
+                                                        id={`scope_${service.service_id}`}
+                                                        name="scopeOfServices"
+                                                        checked={selectedServices[service.service_id] || false}
+                                                        onChange={() => handleCheckboxChange({
+                                                            group_id: item.group_id,
+                                                            group_symbol: item.symbol,
+                                                            group_name: item.group_title,
+                                                            service_id: service.service_id,
+                                                            service_name: service.service_title,
+                                                            price: priceData[service.service_id]?.pricingPackages || '',
+                                                            selected_packages: selectedPackages[service.service_id] || []
+                                                        })}
+                                                        className="mr-2"
+                                                    />
+                                                    <label htmlFor={`scope_${service.service_id}`} className="ml-2">{service.service_title}</label>
+                                                </div>
+                                            </td>
+        
+                                            <td className="py-2 md:py-3 px-4 border-r border-b whitespace-nowrap">
+                                                <input
+                                                    type="number"
+                                                    name="pricingPackages"
+                                                    value={priceData[service.service_id]?.pricingPackages || ""}
+                                                    onChange={(e) => handlePriceChange(e, service.service_id)}
+                                                    className='outline-none'
+                                                    disabled={!selectedServices[service.service_id]}
+                                                    onBlur={(e) => handlePriceChange(e, service.service_id)}  // Send on blur/focus out
+                                                />
+                                            </td>
+                                            <td className="py-2 md:py-3 px-4 border-r border-b whitespace-nowrap uppercase text-left">
+                                                <MultiSelect
+                                                    options={packageList.map(pkg => ({ value: pkg.id, label: pkg.title }))}
+                                                    value={selectedPackages[service.service_id]?.map(pkgId => ({
+                                                        value: pkgId,
+                                                        label: packageList.find(pkg => pkg.id === pkgId)?.title
+                                                    })) || []}
+                                                    onChange={(selectedList) => handlePackageChange(selectedList, service.service_id)}
+                                                    labelledBy="Select"
+                                                    disabled={!selectedServices[service.service_id]} // Enable if service is selected
+                                                    className='uppercase'
+                                                />
+                                            </td>
+        
+                                        </tr>
+                                    );
+                                });
+                            }
+        
+                            return acc;
+                        }, [])}
+                    </tbody>
 
                     </table>
 
