@@ -337,7 +337,7 @@ const ActiveAccounts = () => {
               <tr className="bg-[#c1dff2] text-[#4d606b] whitespace-nowrap">
                 <th className="border px-4 py-2">SL</th>
                 <th className="border px-4 py-2">Client ID</th>
-                <th className="border px-4 py-2">Organization Name</th>
+                <th className="border px-4 py-2">Company Name</th>
                 <th className="border px-4 py-2">Registered Address</th>
                 <th className="border px-4 py-2">Email</th>
                 <th className="border px-4 py-2">State</th>
@@ -345,7 +345,7 @@ const ActiveAccounts = () => {
                 <th className="border px-4 py-2">GST Number</th>
                 <th className="border px-4 py-2">Mobile Number</th>
                 <th className="border px-4 py-2">TAT</th>
-                <th className="border px-4 py-2">Date of Agreement</th>
+                <th className="border px-4 py-2">Date of Service Agreement</th>
                 <th className="border px-4 py-2">Standard Process</th>
                 <th className="border px-4 py-2">Agreement Period</th>
                 <th className="border px-4 py-2">Custom Template</th>

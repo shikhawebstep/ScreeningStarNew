@@ -254,7 +254,7 @@ const ClientSpoc = () => {
             <div className="w-2/5">
               <form className="space-y-4 ps-0 py-[30px] px-[51px] bg-white rounded-md" id="client-spoc" onSubmit={handleSubmit}>
                 <div>
-                  <label htmlFor="name" className="block mb-2">SPOC Name</label>
+                  <label htmlFor="name" className="block mb-2">Name of the Spoc</label>
                   <input
                     type="text"
                     id="name"

@@ -103,10 +103,10 @@ const AddClient = () => {
     const memoizedAllSpocs = useCallback(() => {
         AllSpocs(); // Call the original AllSpocs function
     }, [AllSpocs]); // Only recreate this function if AllSpocs changes
-    
+
     useEffect(() => {
         memoizedAllSpocs(); // This will now run only once unless AllSpocs itself changes
-    }, [memoizedAllSpocs]); 
+    }, [memoizedAllSpocs]);
 
 
     const addBranch = () => {
@@ -582,7 +582,7 @@ const AddClient = () => {
                         {errors.company_name && <span className="text-red-500">{errors.company_name}</span>}
                     </div>
                     <div>
-                        <label className="block mb-1 text-sm font-medium">Client Unique ID</label>
+                        <label className="block mb-1 text-sm font-medium">Client ID</label>
                         <input
                             type="text"
                             name="client_code"
@@ -689,7 +689,7 @@ const AddClient = () => {
 
                 <div className="grid grid-cols-3 gap-4">
                     <div>
-                        <label className="block mb-1 text-sm font-medium">Service Agreement Date</label>
+                        <label className="block mb-1 text-sm font-medium">Date Of Service Agreement </label>
                         <input
                             type="date"
                             onChange={handleChange}
@@ -712,17 +712,38 @@ const AddClient = () => {
                         />
                         {errors.tat && <span className="text-red-500">{errors.tat}</span>}
                     </div>
-                    <div>
-                        <label className="block mb-1 text-sm font-medium">Custom Template</label>
-                        <input
-                            type="text"
-                            name="custom_template"
-                            placeholder="Enter Custom Template"
-                            value={clientData.custom_template}
-                            onChange={handleChange}
-                            className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.custom_template ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
-                        />
+
+
+                    <div className="mb-4">
+                        <label className="text-gray-500" htmlFor="custom_template">Required Custom Template:*</label>
+                        <select name="custom_template" id="custom_template" value={clientData.custom_template} className="border w-full rounded-md p-2 mt-2 outline-none" onChange={handleChange}>
+                            <option value="yes">yes</option>
+                            <option value="no" selected>no</option>
+                        </select>
+                        {clientData.custom_template === 'yes' && (
+                            <>
+                                <div className="mb-4 mt-4">
+                                    <label htmlFor="custom_logo" className="text-gray-500">Upload Custom Logo :*</label>
+                                    <input
+                                        type="file"
+                                        name="custom_logo"
+                                        id="custom_logo"
+                                        onChange={(e) => handleFileChange('custom_logo', e)} />
+                                </div>
+                                <div className="mb-4">
+                                    <label htmlFor="" className="text-gray-500">Custom Address</label>
+                                    <textarea
+                                        name="custom_address"
+                                        id="custom_address"
+                                        onChange={handleChange}
+                                        value={clientData.custom_address}
+                                        className="border w-full rounded-md p-2 mt-2 outline-none"
+                                    ></textarea>
+                                </div>
+                            </>
+                        )}
                         {errors.custom_template && <span className="text-red-500">{errors.custom_template}</span>}
+
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
