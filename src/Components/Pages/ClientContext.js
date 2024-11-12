@@ -166,11 +166,7 @@ export const ClientProvider = ({ children }) => {
         fetchauthorized_detail_id,
     ]);
 
-    // Call AllSpocs once when the component mounts
-    useEffect(() => {
-        AllSpocs();
-    }, [AllSpocs]);  // Effect only runs once
-
+  
     return (
         <ClientContext.Provider
             value={{

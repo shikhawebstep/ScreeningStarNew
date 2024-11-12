@@ -12,15 +12,13 @@ const option = states.map((state) => ({ value: state.isoCode, label: state.name 
 const EditClient = () => {
     const [priceData, setPriceData] = useState({});
     const [files, setFiles] = useState([]);
-    const [service, setService] = useState([]);
     const [selectedServices, setSelectedServices] = useState({});
-    const [clientPreSelectedServices, setClientPreSelectedServices] = useState([]);
     const [services, setServices] = useState([]);
     const [packageList, setPackageList] = useState([]);
     const [selectedPackages, setSelectedPackages] = useState([]);
     const [selectedOption, setSelectedOption] = useState(null);
     const [errors, setErrors] = useState({});
-    const [emails, setemails] = useState([]);
+    const [emails, setEmails] = useState([]);
     const { client_spoc_id, AllSpocs, escalation_manager_id, billing_spoc_id, billing_escalation_id, authorized_detail_id, selectedClient, setSelectedClient } = useClientContext();
 
     const memoizedAllSpocs = useCallback(() => {
@@ -31,12 +29,21 @@ const EditClient = () => {
         memoizedAllSpocs(); // This will now run only once unless AllSpocs itself changes
     }, [memoizedAllSpocs]);
 
-    console.log('selectedClient', selectedClient)
+    console.log('selectedClient', selectedClient);
+    useEffect(() => {
+        // Parse and set emails array from selectedClient
+        setEmails(JSON.parse(selectedClient.emails));
+      }, [selectedClient.emails]);
 
     // setClientPreSelectedServices(clientPreSelectedServicesRaw);
-    const checkServiceById = useCallback((serviceId, groupId) => {
-        const clientPreSelectedServicesRaw = selectedClient?.services ? JSON.parse(selectedClient.services) : null;
-        console.log(`clientPreSelectedServicesRaw - `, clientPreSelectedServicesRaw);
+    const checkServiceById = useCallback((selectedClientForFunction, serviceId, groupId) => {
+
+        const clientPreSelectedServicesRaw = selectedClientForFunction?.services
+            ? typeof selectedClientForFunction.services === 'string'
+                ? JSON.parse(selectedClientForFunction.services)
+                : selectedClientForFunction.services
+            : null;
+
         // Find the specified group by `groupId`
         const groupWithService = clientPreSelectedServicesRaw.find(group =>
             group.group_id === groupId && group.services.some(service => service.serviceId === serviceId)
@@ -53,6 +60,53 @@ const EditClient = () => {
 
         return { status: false };
     }, []);
+
+    const deleteService = (selectedClientForFunction, group_id, serviceId) => {
+
+        const clientPreSelectedServicesRaw = selectedClientForFunction?.services
+            ? typeof selectedClientForFunction.services === 'string'
+                ? JSON.parse(selectedClientForFunction.services)
+                : selectedClientForFunction.services
+            : null;
+        if (!Array.isArray(clientPreSelectedServicesRaw)) {
+
+            return; // Early return or handle the error as needed
+        }
+
+        // Create a new array with the service deleted
+        const updatedClientData = clientPreSelectedServicesRaw.map(group => {
+
+
+            // Check if the group_id matches
+            if (group.group_id === group_id) {
+
+
+                // Filter out the service by serviceId
+                const updatedServices = group.services.filter(service => service.serviceId !== serviceId);
+
+
+                // Return the updated group with the filtered services
+                return { ...group, services: updatedServices };
+            }
+
+            return group; // Return the group as is if it doesn't match the group_id
+        });
+
+
+
+        // After updating, set the new state
+        setSelectedClient((prev) => {
+
+            return {
+                ...prev,
+                services: JSON.stringify(updatedClientData),
+            };
+        });
+    };
+
+
+
+
 
     const handleChange = (e) => {
         const { name, value, type, files } = e.target;
@@ -73,24 +127,22 @@ const EditClient = () => {
         });
     };
 
-    const uploadCustomerLogo = async (adminId, token, customerInsertId, password) => {
+    const uploadCustomerLogo = async (adminId, token) => {
 
 
         const fileCount = Object.keys(files).length;
         for (const [index, [key, value]] of Object.entries(files).entries()) {
-            const customerLogoselectedClient = new selectedClient();
+            const customerLogoselectedClient = new FormData();
             customerLogoselectedClient.append('admin_id', adminId);
             customerLogoselectedClient.append('_token', token);
-            customerLogoselectedClient.append('customer_code', selectedClient.client_code);
-            customerLogoselectedClient.append('customer_id', customerInsertId);
+            customerLogoselectedClient.append('customer_code', selectedClient.client_unique_id);
+            customerLogoselectedClient.append('customer_id', selectedClient.id,);
             for (const file of value) {
                 customerLogoselectedClient.append('images', file);
                 customerLogoselectedClient.append('upload_category', key);
             }
             if (fileCount === (index + 1)) {
-                customerLogoselectedClient.append('send_mail', 1);
-                customerLogoselectedClient.append('company_name', selectedClient.company_name);
-                customerLogoselectedClient.append('password', password);
+                customerLogoselectedClient.append('company_name', selectedClient.name);
             }
 
             try {
@@ -139,7 +191,7 @@ const EditClient = () => {
                     localStorage.setItem("_token", newToken)
                 }
                 // Log the result to understand its structure
-                console.log(result);
+
 
                 // Extracting services data into separate variables
                 const servicesData = result.data;
@@ -174,55 +226,40 @@ const EditClient = () => {
                     localStorage.setItem("_token", newToken)
                 }
                 // Log the result to understand its structure
-                console.log('package', result);
+
 
                 // Extracting services data into separate variables
                 setPackageList(result.packages);
             })
             .catch((error) => console.error('Error fetching services:', error));
     }, []);
-    console.log("service", service);
 
     useEffect(() => {
         fetchServices();
         fetchPackages();
     }, [fetchServices, fetchPackages]);
 
-    // 1. Handle checkbox change (checking/unchecking a service)
-    const handleCheckboxChange = ({ group_id, group_symbol, group_name, service_id, service_name, price, selected_packages }) => {
-        setSelectedServices(prevSelectedServices => {
-            const isSelected = prevSelectedServices[service_id];
-            const newSelectedState = !isSelected; // Toggle checkbox state
+    const handleCheckboxChange = (selectedClientForFunction, { group_id, group_symbol, group_name, service_id, service_name, price, selected_packages }) => {
 
-            // Update priceData and selectedPackages if deselecting
-            if (!newSelectedState) {
-                setPriceData(prevPriceData => ({
-                    ...prevPriceData,
-                    [service_id]: { pricingPackages: "" }
-                }));
-                setSelectedPackages(prevSelectedPackages => ({
-                    ...prevSelectedPackages,
-                    [service_id]: []
-                }));
-            }
+        // Check service by ID
+        const { status, priceOld, packages } = checkServiceById(selectedClientForFunction, service_id, group_id);
 
-            // Send data to server after state update
-            sendDataToServer({
-                group_id,
-                group_symbol,
-                group_name,
-                service_id,
-                service_name,
-                price: newSelectedState ? price : "", // Send empty if deselected
-                selected_packages: newSelectedState ? selected_packages : [], // Send empty if deselected
-                action: "checkbox_change"
-            });
+        if (status) {
+            deleteService(selectedClientForFunction, group_id, service_id)
+        }
 
-            return {
-                ...prevSelectedServices,
-                [service_id]: newSelectedState
-            };
-        });
+        const dataToSend = {
+            group_id,
+            group_symbol,
+            group_name,
+            service_id,
+            service_name,
+            price: status ? price : "", // Send empty if deselected
+            selected_packages: status ? selected_packages : [], // Send empty if deselected
+            action: "checkbox_change"
+        };
+
+        sendDataToServer(dataToSend);
     };
 
 
@@ -243,13 +280,12 @@ const EditClient = () => {
         sendDataToServer({
             service_id,
             price: newPrice,
-            action: "price_change"
+            action: "price_change",
         });
     };
 
     // 3. Handle package selection change (when packages are selected or changed)
     const handlePackageChange = (selectedList, serviceId) => {
-        console.log("Selected packages for serviceId", serviceId, ":", selectedList);
 
         // Create an array of selected packages in the desired format
         const selectedPackagesData = selectedList.map(pkg => ({
@@ -273,26 +309,26 @@ const EditClient = () => {
     };
 
 
-    function updateServiceById(serviceId, updatedInfo = selectedClient.scopeOfServices) {
-        console.log("Starting updateServiceById with serviceId:", serviceId, "and updatedInfo:", updatedInfo);
+    function updateServiceById(serviceId, updatedInfo) {
 
-        // Create a copy of services to avoid mutation
-        const updatedServices = [...services];  // Shallow copy of services
 
-        for (let group of updatedServices) {
-            console.log("Checking group:", group);
+
+
+        // Parse selectedClient's services only if it's valid (non-null, non-undefined)
+        const clientPreSelectedServicesRaw = selectedClient?.services ? JSON.parse(selectedClient.services) : null;
+
+        for (let group of clientPreSelectedServicesRaw) {
+
 
             if (group.services) {
                 const service = group.services.find(service => service.serviceId === serviceId);
-                console.log("Found service:", service);
 
                 if (service) {
                     // Update the fields in the service object with the values in updatedInfo
                     Object.assign(service, updatedInfo);
-                    console.log("Service updated:", service);
                     setSelectedClient((prev) => ({
                         ...prev,
-                        scopeOfServices: updatedServices  // Update scopeOfServices immutably
+                        services: JSON.stringify(clientPreSelectedServicesRaw),
                     }));
                     return true;  // Return true if update was successful
                 }
@@ -300,7 +336,7 @@ const EditClient = () => {
         }
 
         // If service is not found, create a new service and add it to the appropriate group
-        console.log("Service not found with serviceId:", serviceId);
+
 
         const newService = {
             serviceId,
@@ -308,39 +344,34 @@ const EditClient = () => {
             price: updatedInfo.price || '',
             packages: updatedInfo.packages || []  // Assuming updatedInfo includes packages
         };
-        console.log("Adding new service:", newService);
 
         // Add the new service to the correct group
-        const groupIndex = updatedServices.findIndex(group => group.group_id === updatedInfo.group_id);
+        const groupIndex = clientPreSelectedServicesRaw.findIndex(group => group.group_id === updatedInfo.group_id);
         if (groupIndex !== -1) {
-            updatedServices[groupIndex].services.push(newService);  // Add the new service to the found group
-            console.log("New service added to group:", updatedServices[groupIndex]);
+            clientPreSelectedServicesRaw[groupIndex].services.push(newService);  // Add the new service to the found group
         } else {
             // If the group is not found, you can add a new group, or handle it differently based on your needs
-            console.log("Group not found, creating a new group.");
-            updatedServices.push({
+            clientPreSelectedServicesRaw.push({
                 group_id: updatedInfo.group_id,
                 group_title: updatedInfo.group_name,
+                group_symbol: updatedInfo.group_symbol,
                 services: [newService]
             });
         }
 
-        // Update the selectedClient.scopeOfServices directly with a new copy
+        // Update the clientData.scopeOfServices directly
         setSelectedClient((prev) => ({
             ...prev,
-            scopeOfServices: updatedServices
+            services: JSON.stringify(clientPreSelectedServicesRaw),
         }));
 
-        console.log("Updated selectedClient.scopeOfServices:", updatedServices);
 
         return true;
     }
 
-    console.log('selectedClient', selectedClient);
 
     // Function to send data to the server (or perform any other action you need)
     const sendDataToServer = (data) => {
-        console.log("Sending data to server:", data);
 
         let sendDataRunning = false;
         let updatedData = {};
@@ -348,47 +379,146 @@ const EditClient = () => {
         // Handle the different actions
         switch (data.action) {
             case 'package_change':
-                console.log("Handling package_change action");
                 updatedData = { packages: data.selected_packages };  // Assuming you want to update packages
                 sendDataRunning = true;
                 break;
             case 'checkbox_change':
-                console.log("Handling checkbox_change action");
                 const { selected_packages, group_id, group_name, group_symbol, price, service_name } = data;
                 updatedData = { selected_packages, group_id, group_name, group_symbol, price, serviceTitle: service_name };
                 sendDataRunning = true;
                 break;
             case 'price_change':
-                console.log("Handling price_change action");
+
                 updatedData = { price: data.price };  // Only updating price
                 sendDataRunning = true;
                 break;
             default:
-                console.log("No matching action found");
+
                 break;
         }
 
         if (sendDataRunning) {
-            console.log("Sending updated data:", updatedData);
             const serviceId = data.service_id;
             const isUpdated = updateServiceById(serviceId, updatedData);  // Update service with serviceId
-            console.log("Update result:", isUpdated);  // Should log true if updated successfully
-            console.log("Updated selectedClient.scopeOfServices:", selectedClient.scopeOfServices);
+
 
         } else {
-            console.log("No action was processed, data not sent.");
+
         }
     };
 
 
+    const validateRequiredFields = () => {
+        const requiredFields = [
+            "name", "client_unique_id", "address", "state", "state_code", "gst_number",
+            "tat_days", "agreement_duration", "client_standard", "agreement_date", "custom_template"
+            , "mobile", "role", "client_standard", "client_spoc_id",
+            "escalation_manager_id", "billing_spoc_id", "billing_escalation_id", "authorized_detail_id", "username",
+        ];
+
+        const newErrors = {};
+
+        // Validate clientData fields
+        requiredFields.forEach(field => {
+            const fieldValue = selectedClient[field];
+
+            if (!fieldValue || (Array.isArray(fieldValue) && fieldValue.length === 0)) {
+                newErrors[field] = "This field is required";
+            }
+        });
+
+        // Validate each branch's branch_email and branch_name
 
 
+        // Validate emails
+        if (!emails || emails.length === 0) {
+            newErrors.emails = "At least one email is required";
+        } else {
+            emails.forEach((email, index) => {
+                // Check for valid email format using regex
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(email)) {
+                    newErrors[`email_${index}`] = "Invalid email format";
+                }
+            });
+        }
 
+        setErrors(newErrors);
+        return newErrors;
+    };
 
-    const handleSubmit = (e) => {
-        e.preventDefault();
+    const handleSubmit = async (e) => {
+        e.preventDefault();  // Prevent form submission immediately
+
+        // Run validation and get errors
+        let validationErrors = validateRequiredFields();
+
+        // If there are validation errors, show an alert and stop submission
+        if (Object.keys(validationErrors).length > 0) {
+            setErrors(validationErrors);
+            return;  // Stop submission if there are validation errors
+        }
+
+        try {
+            // Retrieve necessary data from localStorage
+            const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
+            const storedToken = localStorage.getItem("_token");
+
+            // Prepare the payload with all necessary data
+            const payload2 = JSON.stringify({
+                admin_id: admin_id,
+                _token: storedToken,
+                ...selectedClient,
+                customer_id: selectedClient.id,
+                emails,   // Ensure `date` is correctly defined or passed in
+                additional_login: selectedOption, // Assuming this is the additional_login value
+            });
+
+            // Set up request headers
+            const myHeaders = new Headers();
+            myHeaders.append("Content-Type", "application/json");
+
+            // Define the request options
+            const requestOptions = {
+                method: "PUT",
+                headers: myHeaders,
+                body: payload2,
+                redirect: "follow",
+            };
+
+            // Make the API call
+            const response = await fetch("https://screeningstar-new.onrender.com/customer/update", requestOptions);
+
+            // Check if the response is successful
+            if (!response.ok) {
+                throw new Error('Failed to submit the form');
+            }
+
+            // Handle the response
+            const result = await response.json();
+            Swal.fire('success', result.message)
+          
+            // If the response includes a new token, store it
+            const newToken = result.token || result._token || '';
+            if (newToken) {
+                localStorage.setItem("_token", newToken);
+            }
+
+            // Proceed with uploading the logo or any other necessary action
+            uploadCustomerLogo(admin_id, storedToken);
+            console.log('result', result);
+            // Clear selected package options
+            setSelectedOption(null); // Reset login requirement option
+
+        } catch (error) {
+            // Handle error and set error state
+            console.error('Submission error:', error);
+        }
+
+        // Clear any previous API errors
 
     };
+    console.log('error', errors)
 
     return (
         <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md">
@@ -399,26 +529,26 @@ const EditClient = () => {
                     <label className="block mb-1 text-sm font-medium">Name of the Organization</label>
                     <input
                         type="text"
-                        name="company_name"
+                        name="name"
                         placeholder="Enter Organization Name"
                         value={selectedClient.name}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.company_name ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.name ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.company_name && <span className="text-red-500">{errors.company_name}</span>}
+                    {errors.name && <span className="text-red-500">{errors.name}</span>}
                 </div>
                 <div>
                     <label className="block mb-1 text-sm font-medium">Client Unique ID</label>
                     <input
                         type="text"
-                        name="client_code"
+                        name="client_unique_id"
                         placeholder="Enter Client Unique ID"
                         value={selectedClient.client_unique_id}
                         onChange={handleChange}
                         disabled
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.client_code ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.client_unique_id ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.client_code && <span className="text-red-500">{errors.client_code}</span>}
+                    {errors.client_unique_id && <span className="text-red-500">{errors.client_unique_id}</span>}
                 </div>
             </div>
 
@@ -476,13 +606,13 @@ const EditClient = () => {
                     <label className="block mb-1 text-sm font-medium">GST Number</label>
                     <input
                         type="text"
-                        name="gstin"
+                        name="gst_number"
                         placeholder="Enter GST Number"
                         value={selectedClient.gst_number}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.gstin ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.gst_number ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.gstin && <span className="text-red-500">{errors.gstin}</span>}
+                    {errors.gst_number && <span className="text-red-500">{errors.gst_number}</span>}
                 </div>
             </div>
 
@@ -492,13 +622,13 @@ const EditClient = () => {
                     <label className="block mb-1 text-sm font-medium">Mobile Number</label>
                     <input
                         type="text"
-                        name="mobile_number"
+                        name="mobile"
                         placeholder="Enter Mobile Number"
                         value={selectedClient.mobile}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.mobile_number ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.mobile ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.mobile_number && <span className="text-red-500">{errors.mobile_number}</span>}
+                    {errors.mobile && <span className="text-red-500">{errors.mobile}</span>}
                 </div>
                 <div>
                     <label className="block mb-1 text-sm font-medium">Email</label>
@@ -506,9 +636,10 @@ const EditClient = () => {
                         type="text"
                         name="emails"
                         placeholder="Enter Email"
-                        value={emails.emails}
-                        onChange={(e) => setemails([e.target.value])}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.emails ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        value={emails[0] || ""}
+                        onChange={(e) => setEmails([e.target.value])}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.emails ? "border-red-500" : "border-gray-300"
+                            } bg-[#f7f6fb]`}
                     />
                     {errors.emails && <span className="text-red-500">{errors.emails}</span>}
                 </div>
@@ -520,24 +651,24 @@ const EditClient = () => {
                     <input
                         type="date"
                         onChange={handleChange}
-                        value={selectedClient.agreement_date}
-                        name='date_agreement'
+                        value={new Date(selectedClient.agreement_date)}
+                        name='agreement_date'
                         placeholderText="Select Service Agreement Date"
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.date_agreement ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.agreement_date ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.date_agreement && <span className="text-red-500">{errors.date_agreement}</span>}
+                    {errors.agreement_date && <span className="text-red-500">{errors.agreement_date}</span>}
                 </div>
                 <div>
                     <label className="block mb-1 text-sm font-medium">TAT (Turnaround Time)</label>
                     <input
                         type="text"
-                        name="tat"
+                        name="tat_days"
                         placeholder="Enter TAT"
                         value={selectedClient.tat_days}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.tat ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.tat_days ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
-                    {errors.tat && <span className="text-red-500">{errors.tat}</span>}
+                    {errors.tat_days && <span className="text-red-500">{errors.tat_days}</span>}
                 </div>
                 <div>
                     <label className="block mb-1 text-sm font-medium">Custom Template</label>
@@ -557,20 +688,20 @@ const EditClient = () => {
                     <label className="block mb-1 text-sm font-medium">Client Procedure</label>
                     <input
                         type="text"
-                        name="clientProcedure"
+                        name="client_standard"
                         placeholder="Enter Client Procedure"
                         value={selectedClient.client_standard}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.clientProcedure ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.client_standard ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     />
                 </div>
                 <div>
                     <label className="block mb-1 text-sm font-medium">Agreement Period</label>
                     <select
-                        name="agreement_period"
-                        value={selectedClient.agreement_date || ""}
+                        name="agreement_duration"
+                        value={selectedClient.agreement_duration || ""}
                         onChange={handleChange}
-                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.agreement_period ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
+                        className={`w-full rounded-md p-2.5 mb-[20px] border ${errors.agreement_duration ? "border-red-500" : "border-gray-300"} bg-[#f7f6fb]`}
                     >
                         <option value="" className="text-[#989fb3]">
                             Select Agreement Period
@@ -746,11 +877,7 @@ const EditClient = () => {
 
                                     item.services.forEach((service, serviceIndex) => {
                                         const serviceNumber = serviceIndex + 1;
-                                        const { status, price, packages } = checkServiceById(service.service_id, item.group_id);
-                                        console.log(`----==== SERVICE (${service.service_id}) ====----`);
-                                        console.log("Status:", status);
-                                        console.log("Price:", price);
-                                        console.log("Packages:", packages);
+                                        const { status, price, packages } = checkServiceById(selectedClient, service.service_id, item.group_id);
                                         acc.push(
                                             <tr key={`${item.group_id}-${service.service_id}`}>
                                                 <td className="py-2 md:py-3 px-4 border-l border-r border-b whitespace-nowrap"></td>
@@ -762,9 +889,9 @@ const EditClient = () => {
                                                         <input
                                                             type="checkbox"
                                                             id={`scope_${service.service_id}`}
-                                                            name="scopeOfServices"
+                                                            name="services"
                                                             checked={status || false}
-                                                            onChange={() => handleCheckboxChange({
+                                                            onChange={() => handleCheckboxChange(selectedClient, {
                                                                 group_id: item.group_id,
                                                                 group_symbol: item.symbol,
                                                                 group_name: item.group_title,
@@ -822,7 +949,7 @@ const EditClient = () => {
 
 
             <div className="mt-4">
-                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded mr-2">Save</button>
+                <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded mr-2">Update</button>
             </div>
         </form>
     );
