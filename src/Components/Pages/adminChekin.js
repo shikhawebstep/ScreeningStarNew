@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from "jspdf";
 import "jspdf-autotable";
@@ -7,6 +7,7 @@ const AdminChekin = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [data, setData] = useState([]);
+    const [formData, setFormData] = useState([]);
     const [reportData, setReportData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -15,36 +16,31 @@ const AdminChekin = () => {
     const queryParams = new URLSearchParams(location.search);
     const clientId = queryParams.get('clientId');
     const branchId = queryParams.get('branchId');
-
+    const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+    const token = localStorage.getItem('_token');
     console.log(`Fetching data for clientId: ${clientId}, branchId: ${branchId}`);
 
     // Fetch data from the main API
-    const fetchData = async () => {
-        const token = localStorage.getItem('token');
-        try {
-            const response = await fetch(`https://screeningstar.onrender.com/Screeningstar/getdata/${clientId}/${branchId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
-            const result = await response.json();
-            setData(result.data);
-        } catch (error) {
-            setError(error.message);
-        } finally {
-            setLoading(false);
+    const fetchData = useCallback(() => {
+        if(!branchId || !adminId || !token ){
+            return;
         }
-    };
+        const requestOptions = {
+            method: "GET",
+            redirect: "follow"
+        };
     
+        fetch(`https://screeningstar-new.onrender.com/client-master-tracker/applications-by-branch?branch_id=${branchId}&admin_id=${adminId}&_token=${token}`, requestOptions)
+            .then((response) => response.json())
+            .then((result) => {
+                setData(result.customers);
+            })
+            .catch((error) => console.error(error));
+    }, [branchId, adminId, token, setData]);
+    
+
     const extractedVerificationStatuses = Object.values(reportData).map(item => item.parsedFormData.formData.verificationStatus);
-console.log('dayaaaa',extractedVerificationStatuses)
+    console.log('dayaaaa', extractedVerificationStatuses)
     const generatePDF = async (applicationId) => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
@@ -80,17 +76,17 @@ console.log('dayaaaa',extractedVerificationStatuses)
             doc.text("No 93/9, Varthur Main Road", 10, 40);
             doc.text("Marathahalli, Bangalore, Karnataka,", 10, 45);
             doc.text("India, Pin Code - 560037", 10, 50);
-            
+
             const imgBoxX = pageWidth - 40;
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
             doc.text(formJsonData.organizationName, imgBoxX + 15, 20, { align: 'center' });
             doc.rect(imgBoxX, 23, 30, 23);
             doc.text(applicantName, imgBoxX + 15, 50, { align: 'center' });
-            
+
             doc.setLineWidth(1);
             doc.line(10, 55, pageWidth - 10, 55);
-            
+
             const titleWidth = pageWidth - 2 * sideMargin; // Adjust width for equal margins
             doc.setFillColor(246, 246, 246);
             doc.rect(sideMargin, 60, titleWidth, 8, 'F'); // Centered background rectangle with equal side gaps
@@ -100,7 +96,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
             doc.text(mainTitle, pageWidth / 2, 66, { align: 'center' });
-            
+
             const headerTableData = [
                 ["SCREENINGSTAR REF ID", apiData.data.application_id, "DATE OF BIRTH", formData.dateOfBirth || "N/A"],
                 ["EMPLOYEE ID", formJsonData.employeeId || "N/A", "INSUFF CLEARED", formData.insuffClearedDate || "N/A"],
@@ -108,7 +104,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                 ["VERIFICATION PURPOSE", formData.verificationPurpose || "Employment", "VERIFICATION STATUS", formData.verificationStatus || "N/A"],
                 ["REPORT TYPE", formData.reportType || "Employment", "REPORT STATUS", formData.reportStatus || "N/A"]
             ];
-            
+
             doc.autoTable({
                 body: headerTableData,
                 startY: 75,
@@ -129,9 +125,9 @@ console.log('dayaaaa',extractedVerificationStatuses)
                 },
                 tableLineColor: [62, 118, 165],
                 tableLineWidth: 0.5,
-                margin: { left: sideMargin, right: sideMargin , bottom:20 }
+                margin: { left: sideMargin, right: sideMargin, bottom: 20 }
             });
-            
+
             const SummaryTitle = "SUMMARY OF THE VERIFICATION CONDUCTED";
             const padding = 3;
             const backgroundColor = '#f5f5f5';
@@ -140,15 +136,15 @@ console.log('dayaaaa',extractedVerificationStatuses)
             const ysPosition = 120;
             const fullWidth = pageWidth - 20;
             const rectHeight = 10;
-            
+
             doc.setFillColor(backgroundColor);
             doc.setDrawColor(borderColor);
             doc.rect(xsPosition, ysPosition, fullWidth, rectHeight, 'FD');
             doc.text(SummaryTitle, pageWidth / 2, ysPosition + 7, { align: 'center' });
 
             const marginTop = 5;
-            const nextContentYPosition = ysPosition + rectHeight + marginTop; 
-            
+            const nextContentYPosition = ysPosition + rectHeight + marginTop;
+
             doc.autoTable({
                 head: [
                     [
@@ -190,7 +186,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                     3: { cellWidth: 47.5 },
                 },
             });
-            
+
 
             doc.autoTable({
                 head: [
@@ -198,20 +194,20 @@ console.log('dayaaaa',extractedVerificationStatuses)
                         { content: "COLOR CODE / ADJUDICATION MATRIX", colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [246, 246, 246] } }
                     ],
                     [
-                        { content: 'MAJOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap' ,minCellWidth: 10 }},
-                        { content: 'MINOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap' ,minCellWidth: 10 }},
-                        { content: 'UNABLE TO VERIFY', styles: { halign: 'center', cellWidth: 'wrap',minCellWidth: 10  }},
-                        { content: 'PENDING FROM SOURCE', styles: { halign: 'center', cellWidth: 'nowrap',minCellWidth: 10  }},
-                        { content: 'ALL CLEAR', styles: { halign: 'center', cellWidth: 'wrap',minCellWidth: 10  }}
+                        { content: 'MAJOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                        { content: 'MINOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                        { content: 'UNABLE TO VERIFY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                        { content: 'PENDING FROM SOURCE', styles: { halign: 'center', cellWidth: 'nowrap', minCellWidth: 10 } },
+                        { content: 'ALL CLEAR', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } }
                     ]
                 ],
                 body: [
                     [
-                        { content: '', styles: { fillColor: [255, 0, 0], minCellHeight: 20, cellPadding: 3 },cellWidth: 10 }, 
-                        { content: '', styles: { fillColor: [255, 255, 0], minCellHeight: 20 , cellPadding: 3 } }, // Yellow
-                        { content: '', styles: { fillColor: [255, 165, 0], minCellHeight: 20 , cellPadding: 3 } }, // Orange
-                        { content: '', styles: { fillColor: [255, 192, 203], minCellHeight: 20 , cellPadding: 3 } }, // Pink
-                        { content: '', styles: { fillColor: [0, 128, 0], minCellHeight: 20 , cellPadding: 3 } } // Green
+                        { content: '', styles: { fillColor: [255, 0, 0], minCellHeight: 20, cellPadding: 3 }, cellWidth: 10 },
+                        { content: '', styles: { fillColor: [255, 255, 0], minCellHeight: 20, cellPadding: 3 } }, // Yellow
+                        { content: '', styles: { fillColor: [255, 165, 0], minCellHeight: 20, cellPadding: 3 } }, // Orange
+                        { content: '', styles: { fillColor: [255, 192, 203], minCellHeight: 20, cellPadding: 3 } }, // Pink
+                        { content: '', styles: { fillColor: [0, 128, 0], minCellHeight: 20, cellPadding: 3 } } // Green
                     ]
                 ],
                 startY: doc.previousAutoTable ? doc.previousAutoTable.finalY + 10 : 10,
@@ -220,8 +216,8 @@ console.log('dayaaaa',extractedVerificationStatuses)
                     cellPadding: 2,
                     halign: 'center',
                     valign: 'middle',
-                    lineWidth: 0.5,      
-                    lineColor: [0, 0, 0], 
+                    lineWidth: 0.5,
+                    lineColor: [0, 0, 0],
                 },
                 theme: 'grid',
                 headStyles: {
@@ -246,13 +242,13 @@ console.log('dayaaaa',extractedVerificationStatuses)
 
 
             yPosition = doc.autoTable.previous.finalY + 10;
-              
+
 
             formDataArray.forEach((service) => {
                 let pageWidth = 210;
                 let rectWidth = 180;
                 let xPosition = (pageWidth - rectWidth) / 2;
-            
+
                 doc.setFillColor(246, 246, 246); // Light gray background color
                 doc.setDrawColor(0, 0, 0); // Black border color
                 doc.rect(xPosition, yPosition, rectWidth, 10, 'FD');
@@ -260,7 +256,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                 doc.setFontSize(11);
                 doc.text(service.serviceHeading.toUpperCase(), 85, yPosition + 7); // Adjust yPosition for vertical alignment
                 yPosition += 20; // Move position down for the next section
-            
+
                 // Prepare service data where the part before ':' is the 'Particulars' and the part after ':' is 'Verified'
                 const serviceData = Object.entries(service.inputs).map(([key, value]) => {
                     const parts = key.split(':');  // Split key by ":"
@@ -268,22 +264,22 @@ console.log('dayaaaa',extractedVerificationStatuses)
                     const verifiedValue = parts.length > 1 ? value : ''; // After ":"
                     return { fieldName, verifiedValue };
                 });
-            
+
                 // Group by fieldName and collect all corresponding values for 'Verified' column
                 let uniqueData = {};
                 formDataArray.forEach((service) => {
                     let pageWidth = 210;
                     let rectWidth = 180;
                     let xPosition = (pageWidth - rectWidth) / 2;
-                
+
                     doc.setFillColor(246, 246, 246); // Light gray background color
                     doc.setDrawColor(0, 0, 0); // Black border color
                     doc.rect(xPosition, yPosition, rectWidth, 10, 'FD');
                     doc.setFont("helvetica", "bold");
                     doc.setFontSize(11);
                     doc.text(service.serviceHeading.toUpperCase(), 85, yPosition + 7);
-                    yPosition += 20; 
-                
+                    yPosition += 20;
+
                     // Prepare service data where the part before ':' is the 'Particulars' and the part after ':' is 'Verified'
                     const serviceData = Object.entries(service.inputs).map(([key, value]) => {
                         const parts = key.split(':');  // Split key by ":"
@@ -291,7 +287,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                         const verifiedValue = parts.length > 1 ? value : ''; // After ":"
                         return { fieldName, verifiedValue };
                     });
-                
+
                     // Group by fieldName and collect all corresponding values for 'Verified' column
                     let uniqueData = {};
                     serviceData.forEach(({ fieldName, verifiedValue }) => {
@@ -302,7 +298,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                             uniqueData[fieldName].verifiedValues.push(verifiedValue);  // Store all verified values
                         }
                     });
-                
+
                     // Prepare the data for the table with "Particulars", "Applicant Details", and "Verified"
                     const tableData = Object.entries(uniqueData).map(([fieldName, { particulars, verifiedValues }]) => {
                         const firstVerifiedValue = verifiedValues.length > 0 ? verifiedValues[0] : 'N/A'; // First value for Applicant Details
@@ -313,7 +309,7 @@ console.log('dayaaaa',extractedVerificationStatuses)
                             remainingVerifiedValues // Remaining values for "Verified"
                         ];
                     });
-                
+
                     // Generate the table with the required data
                     doc.autoTable({
                         head: [
@@ -338,25 +334,25 @@ console.log('dayaaaa',extractedVerificationStatuses)
                             fontStyle: 'bold'
                         }
                     });
-                
+
                     // Update the yPosition for the next section or page
                     yPosition = doc.autoTable.previous.finalY + 10;
-                
+
                     // Check if new page is required, if yes, add a new page and reset yPosition
                     if (yPosition + 20 > doc.internal.pageSize.getHeight()) {
                         doc.addPage();
                         yPosition = 10;
                     }
                 });
-                
-            
+
+
                 // Prepare the data for the table with "Particulars", "Applicant Details", and "Verified"
                 const tableData = Object.entries(uniqueData).map(([fieldName, { particulars, verifiedValues }]) => [
                     particulars,
                     'Applicant Details',
                     verifiedValues.length > 0 ? verifiedValues.join(', ') : 'N/A' // If no verified values, show 'N/A'
                 ]);
-            
+
                 // Generate the table with the required data
                 doc.autoTable({
                     head: [
@@ -381,19 +377,19 @@ console.log('dayaaaa',extractedVerificationStatuses)
                         fontStyle: 'bold'
                     }
                 });
-            
+
                 // Update the yPosition for the next section or page
                 yPosition = doc.autoTable.previous.finalY + 10;
-            
+
                 // Check if new page is required, if yes, add a new page and reset yPosition
                 if (yPosition + 20 > doc.internal.pageSize.getHeight()) {
                     doc.addPage();
                     yPosition = 10;
                 }
             });
-            
-            
-            
+
+
+
 
             doc.save('SSCD.pdf');
         } catch (error) {
@@ -450,12 +446,11 @@ console.log('dayaaaa',extractedVerificationStatuses)
         fetchData(); // Refresh the table data
     };
 
-    const handleUpload = (applicationId) => {
-        navigate(`/admin-generate-report?applicationId=${applicationId}`);
+    const handleUpload = (applicationId,branchid) => {
+        navigate(`/admin-generate-report?applicationId=${applicationId}&branchid=${branchid}`);
     };
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
+ 
 
     return (
         <div className="bg-[#c1dff2]">
@@ -472,7 +467,6 @@ console.log('dayaaaa',extractedVerificationStatuses)
                                 <th className="border px-4 py-2">Name</th>
                                 <th className="border px-4 py-2">Reference ID</th>
                                 <th className="border px-4 py-2">Photo</th>
-                                <th className="border px-4 py-2">NAME OF THE APPLICANT</th>
                                 <th className="border px-4 py-2">APPLICANT EMPLOYEE ID</th>
                                 <th className="border px-4 py-2">Initiation Date</th>
                                 <th className="border px-4 py-2">Deadline Date</th>
@@ -500,29 +494,25 @@ console.log('dayaaaa',extractedVerificationStatuses)
                         </thead>
                         <tbody>
                             {data.map((item, index) => {
-                                const report = reportData[item.application_id] || {};
-                                const parsedData = report.parsedFormData || { formDataArray: [] };
-                                const formDataArray = parsedData.formDataArray || [];
-                                const fromDataa = parsedData.formData || {}; // Ensure fromDataa is defined
+                               
                                 return (
                                     <tr key={item.id} className="text-center">
                                         <td className="border px-4 py-2">{index + 1}</td>
-                                        <td className="border px-4 py-2">{item.clientData.tat}</td>
-                                        <td className="border px-4 py-2">{item.application_id}</td>
-                                        <td className="border px-4 py-2">{item.location}</td>
-                                        <td className="border px-4 py-2">{item.fullName}</td>
-                                        <td className="border px-4 py-2">{item.employeeId}</td>
+                                        <td className="border px-4 py-2">{item.tat_days || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{item.application_id || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{item.location || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{item.name || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{item.employee_id || 'NIL'}</td>
                                         <td className="border px-4 py-2">
-                                            <img src={item.photo} alt={item.fullName} className="w-10 h-10 rounded-full" />
+                                            <img src={`https://screeningstar-new.onrender.com${item.photo}`} alt={item.name} className="w-10 h-10 rounded-full" />
                                         </td>
-                                        <td className="border px-4 py-2">{item.clientData.clientSpoc}</td>
-                                        <td className="border px-4 py-2">{item.employeeId}</td>
-                                        <td className="border px-4 py-2">{new Date(item.createdAt).toLocaleDateString()}</td>
-                                        <td className="border px-4 py-2">{new Date(item.updatedAt).toLocaleDateString()}</td>
+                                        <td className="border px-4 py-2">{item.client_spoc_name || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{new Date(item.created_at).toLocaleDateString()}</td>
+                                        <td className="border px-4 py-2">{new Date(item.updated_at).toLocaleDateString()}</td>
                                         <td className="border px-4 py-2">
                                             <button
                                                 className="bg-white border border-[#073d88] text-[#073d88] px-4 py-2 rounded hover:bg-[#073d88] hover:text-white"
-                                                onClick={() => handleUpload(item.application_id)}
+                                                onClick={() => handleUpload(item.id,item.branch_id)}
                                             >
                                                 Generate Report
                                             </button>
@@ -540,21 +530,21 @@ console.log('dayaaaa',extractedVerificationStatuses)
                                             </button>
 
                                         </td>
-                                        <td className="border px-4 py-2">{fromDataa.overallStatus || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.reportType || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.reportDate ? new Date(fromDataa.reportDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.firstLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.firstInsuffRaisedDate ? new Date(fromDataa.firstInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.firstInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.secondLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.remarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.secondInsuffRaisedDate ? new Date(fromDataa.secondInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.secondInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.thirdLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.thirdLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.thirdInsuffRaisedDate ? new Date(fromDataa.thirdInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.thirdInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.reasonForDelay || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.overallStatus || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.reportType || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.reportDate ? new Date(formData.reportDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.firstLevelRemarks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.firstInsuffRaisedDate ? new Date(formData.firstInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.firstInsuffClearedDate || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.secondLevelRemarks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.remarks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.secondInsuffRaisedDate ? new Date(formData.secondInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.secondInsuffClearedDate || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.thirdLevelRemarks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.thirdLevelRemarks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.thirdInsuffRaisedDate ? new Date(formData.thirdInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.thirdInsuffClearedDate || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.reasonForDelay || 'N/A'}</td>
                                         <td className="border px-4 py-2">
                                             <button
                                                 onClick={() => handleUpload(item.application_id)}
@@ -563,8 +553,8 @@ console.log('dayaaaa',extractedVerificationStatuses)
                                                 Upload
                                             </button>
                                         </td>
-                                        <td className="border px-4 py-2">{fromDataa.reportGeneratedBy || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{fromDataa.qcDoneBy || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.reportGeneratedBy || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{formData.qcDoneBy || 'N/A'}</td>
                                     </tr>
                                 );
                             })}

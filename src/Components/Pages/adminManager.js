@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const AdminManager = () => {
@@ -9,173 +9,150 @@ const AdminManager = () => {
     const [activeCases, setActiveCases] = useState(null);
     const [nonHeadBranchData, setNonHeadBranchData] = useState([]);
 
-    const fetchClientData = async () => {
-        const storedToken = localStorage.getItem('token');
+    const fetchData = useCallback(() => {
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
 
-        try {
-            const response = await fetch('https://screeningstar.onrender.com/Screeningstar/getheadBranchescm', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${storedToken}`,
-                    'Content-Type': 'application/json',
-                },
-            });
+        const requestOptions = {
+            method: "GET",
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            redirect: "follow"
+        };
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch data');
-            }
-            const result = await response.json();
-            setClientData(result || []);
-        } catch (error) {
-            setError(error.message);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const fetchNonHeadBranchData = async (clientId) => {
-        const storedToken = localStorage.getItem('token');
-
-        try {
-            const response = await fetch('https://screeningstar.onrender.com/Screeningstar/getnonheadBranchescm', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${storedToken}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch non-head branch data');
-            }
-            const result = await response.json();
-            setNonHeadBranchData(result || []);
-        } catch (error) {
-            setError(error.message);
-        }
-    };
-
-    useEffect(() => {
-        fetchClientData();
+        fetch(`https://screeningstar-new.onrender.com/client-master-tracker/list?admin_id=${adminId}&_token=${token}`, requestOptions)
+            .then((response) => response.json())
+            .then((result) => {
+                const newToken = result.token || result._token || '';
+                if (newToken) {
+                    localStorage.setItem("_token", newToken);
+                }
+                setClientData(result.customers);
+            })
+            .catch((error) => console.error(error));
     }, []);
 
-    const handleCheckIn = (clientId, branchId) => {
-        navigate(`/admin-chekin?clientId=${clientId}&branchId=${branchId}`);
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    const handleCheckIn = (main_id) => {
+        if (activeCases && activeCases.main_id === main_id) {
+            setActiveCases(null); // Toggle off if the same client is clicked again
+            setNonHeadBranchData([]);
+            return;
+        }
+
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
+
+        const requestOptions = {
+            method: "GET",
+            redirect: "follow"
+        };
+
+        fetch(`https://screeningstar-new.onrender.com/client-master-tracker/branch-list-by-customer?customer_id=${main_id}&admin_id=${adminId}&_token=${token}`, requestOptions)
+            .then((response) => response.json())
+            .then((result) => {
+                const newToken = result.token || result._token || '';
+                if (newToken) {
+                    localStorage.setItem("_token", newToken);
+                }
+                setActiveCases({ main_id }); // Set the active client
+                setNonHeadBranchData(result.customers);
+            })
+            .catch((error) => console.error(error));
     };
 
-    const handleViewActiveCases = (clientId, activeCaseCount) => {
-        const fakeEntries = Array.from({ length: activeCaseCount }, (_, index) => ({
-            caseId: `Case-${index + 1}`,
-            description: `Description for case ${index + 1}`,
-        }));
-        setActiveCases({ clientId, fakeEntries });
-
-        // Fetch non-head branch data when the "View" button is clicked
-        fetchNonHeadBranchData(clientId);
+    const handleDelete = (main_id) => {
+        // Handle delete functionality here
     };
-
-    const handleLess = () => {
-        setActiveCases(null);
-        setNonHeadBranchData([]); // Clear non-head branch data when collapsing
+    const handleCheckInGo = (branch_id,main_id) => {
+        navigate(`/admin-chekin?clientId=${main_id}&branchId=${branch_id}`);
     };
-
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
 
     return (
         <div className="bg-[#c1dff2]">
             <h2 className="text-2xl font-bold py-3 text-left text-[#4d606b] px-3 border">ADMIN MANAGER</h2>
             <div className="bg-white p-12 w-full mx-auto">
-                <div>
-                    <table className="min-w-full border-collapse border rounded-lg">
-                        <thead>
-                            <tr className="bg-[#c1dff2] text-[#4d606b]">
-                                <th className="border px-4 py-2">SL</th>
-                                <th className="border px-4 py-2">Client ID</th>
-                                <th className="border px-4 py-2">Organization Name</th>
-                                <th className="border px-4 py-2">Client Spoc</th>
-                                <th className="border px-4 py-2">Active Cases</th>
-                                <th className="border px-4 py-2">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {clientData.length > 0 ? clientData.map((item, index) => (
-                                <React.Fragment key={item.branch.clientId}>
-                                    <tr className="text-center">
-                                        <td className="border px-4 py-2">{index + 1}</td>
-                                        <td className="border px-4 py-2">{item.branch.clientId}</td>
-                                        <td className="border px-4 py-2">{item.clientManagers[0]?.organizationName || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{item.clientManagers[0]?.spocUploaded || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{item.applicationCount}</td>
-                                        <td className="border px-4 py-2">
-                                            {activeCases && activeCases.clientId === item.branch.clientId ? (
-                                                <button
-                                                    className="bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600"
-                                                    onClick={handleLess}
-                                                >
-                                                    Less
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    className="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600"
-                                                    onClick={() => handleViewActiveCases(item.branch.clientId, item.applicationCount)}
-                                                >
-                                                    View
-                                                </button>
-                                            )}
-                                            <button
-                                                className="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600 ml-2"
-                                                onClick={() => handleCheckIn(item.branch.clientId, item.branch.id)} // Pass both clientId and branchId
-                                            >
-                                                Check In
-                                            </button>
+                <table className="min-w-full border-collapse border rounded-lg">
+                    <thead>
+                        <tr className="bg-[#c1dff2] text-[#4d606b]">
+                            <th className="border px-4 py-2">SL</th>
+                            <th className="border px-4 py-2">Client ID</th>
+                            <th className="border px-4 py-2">Organization Name</th>
+                            <th className="border px-4 py-2">Client Spoc</th>
+                            <th className="border px-4 py-2">Active Cases</th>
+                            <th className="border px-4 py-2">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {clientData.length > 0 ? clientData.map((item, index) => (
+                            <React.Fragment key={item.client_unique_id}>
+                                <tr className="text-center">
+                                    <td className="border px-4 py-2">{index + 1}</td>
+                                    <td className="border px-4 py-2">{item.client_unique_id}</td>
+                                    <td className="border px-4 py-2">{item.name || 'N/A'}</td>
+                                    <td className="border px-4 py-2">{item.single_point_of_contact || 'N/A'}</td>
+                                    <td className="border px-4 py-2">{item.application_count}</td>
+                                    <td className="border px-4 py-2">
+                                        <button
+                                            className={`text-white rounded px-4 py-2 ${
+                                                activeCases && activeCases.main_id === item.main_id ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+                                            }`}
+                                            onClick={() => handleCheckIn(item.main_id)}
+                                        >
+                                            {activeCases && activeCases.main_id === item.main_id ? 'Less' : 'View Branches'}
+                                        </button>
+                                        <button
+                                            className="bg-red-500 text-white rounded px-4 py-2 hover:bg-red-600 ml-2"
+                                            onClick={() => handleDelete(item.main_id)}
+                                        >
+                                            Delete
+                                        </button>
+                                    </td>
+                                </tr>
+                                {activeCases && activeCases.main_id === item.main_id && nonHeadBranchData.length > 0 && (
+                                    <tr className="text-center bg-gray-100">
+                                        <td colSpan="6" className="border px-4 py-2">
+                                            <h3 className="font-bold">Non-Head Branches</h3>
+                                            <table className="w-full mt-2">
+                                                <thead>
+                                                    <tr className="bg-gray-300">
+                                                        <th className="border px-4 py-2">SL</th>
+                                                        <th className="border px-4 py-2">Branch Name</th>
+                                                        <th className="border px-4 py-2">Check in</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {nonHeadBranchData.map((branch, index) => (
+                                                        <tr key={branch.branch_id}>
+                                                            <td className="border px-4 py-2">{index + 1}</td>
+                                                            <td className="border px-4 py-2">{branch.branch_name}</td>
+                                                            <td className="border px-4 py-2">
+                                                                <button
+                                                                    className="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600 ml-2"
+                                                                    onClick={() => handleCheckInGo(branch.branch_id,item.main_id)}
+                                                                >
+                                                                    Check In
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
                                         </td>
                                     </tr>
-                                    {activeCases && activeCases.clientId === item.branch.clientId && nonHeadBranchData.length > 0 && (
-                                        <tr className="text-center bg-gray-100">
-                                            <td colSpan="6" className="border px-4 py-2">
-                                                <h3 className="font-bold">Non-Head Branches</h3>
-                                                <table className="w-full mt-2">
-                                                    <thead>
-                                                        <tr className="bg-gray-300">
-                                                            <th className="border px-4 py-2">SL</th>
-                                                            <th className="border px-4 py-2">Branch Name</th>
-                                                            <th className="border px-4 py-2">Email</th>
-                                                            <th className="border px-4 py-2">SPoC Uploaded</th>
-                                                            <th className="border px-4 py-2">Check in</th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        {nonHeadBranchData.map((branch) => (
-                                                            <tr key={branch.branch.id}>
-                                                                <td className="border px-4 py-2">{+1}</td>
-                                                                <td className="border px-4 py-2">{branch.branch.branchName}</td>
-                                                                <td className="border px-4 py-2">{branch.branch.branchEmail}</td>
-                                                                <td className="border px-4 py-2">{branch.clientManagers[0]?.spocUploaded || 'N/A'}</td>
-                                                                <td className="border px-4 py-2">
-                                                                    <button
-                                                                        className="bg-green-500 text-white rounded px-4 py-2 hover:bg-green-600 ml-2"
-                                                                        onClick={() => handleCheckIn(branch.branch.clientId, branch.branch.id)} // Pass branchId here too
-                                                                    >
-                                                                        Check In
-                                                                    </button>
-                                                                </td>
-                                                            </tr>
-                                                        ))}
-                                                    </tbody>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    )}
-                                </React.Fragment>
-                            )) : (
-                                <tr>
-                                    <td colSpan="6" className="text-center p-4">No client data available</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                )}
+                            </React.Fragment>
+                        )) : (
+                            <tr>
+                                <td colSpan="6" className="text-center p-4">No client data available</td>
+                            </tr>
+                        )}
+                    </tbody>
+                </table>
             </div>
         </div>
     );

@@ -1,23 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 const GenerateReport = () => {
+    const [submittedData, setSubmittedData] = useState(null); // State to hold submitted data
+
     const [loading, setLoading] = useState(true);
-    const [servicesData, setServicesData] = useState(null);
+    const [servicesForm, setServicesForm] = useState('');
+    const [servicesDataInfo, setServicesDataInfo] = useState([]);
+    const [servicesData, setServicesData] = useState([]);
     const [referenceId, setReferenceId] = useState("");
-    const [userDetails, setUserDetails] = useState({
-        user_id: '',
-        clientId: '',
-        branchId: '',
-        application_id: '',
-        createdAt: '',
-        updatedAt: '',
-        organizationName: '',
-        employeeId: '',
-        fullName: ''
-    });
+    const [formValues, setFormValues] = useState({}); // To store form values dynamically
 
     const [formData, setFormData] = useState({
         applicantName: '',
+        application_id: '',
         contactNumber: '',
         monthYear: '',
         initiationDate: '',
@@ -65,111 +60,154 @@ const GenerateReport = () => {
         reasonForDelay: '',
     });
 
+
     const [date, setDate] = useState('');
     const [inputType, setInputType] = useState('text');
     const handleFocus = () => setInputType('date');
     const handleBlur = () => !date && setInputType('text');
 
+    const applicationId = new URLSearchParams(window.location.search).get('applicationId');
+    const branchid = new URLSearchParams(window.location.search).get('branchid');
+
+    // Set referenceId only once when applicationId changes
     useEffect(() => {
-        const applicationId = new URLSearchParams(window.location.search).get('applicationId');
         if (applicationId) setReferenceId(applicationId);
+    }, [applicationId]);
 
-        const fetchApplicationData = async () => {
-            const token = localStorage.getItem('token');
-            try {
-                const response = await fetch("https://screeningstar.onrender.com/Screeningstar/findapplication", {
-                    method: "POST",
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify({ application_id: applicationId }),
-                });
-                if (!response.ok) throw new Error("Network response was not ok");
+    const fetchApplicationData = useCallback(() => {
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
 
-                const data = await response.json();
-                setServicesData(data.data.services);
-                setUserDetails({
-                    user_id: data.data.user_id,
-                    clientId: data.data.clientId,
-                    branchId: data.data.branchId,
-                    application_id: data.data.application_id,
-                    createdAt: data.data.createdAt,
-                    updatedAt: data.data.updatedAt,
-                    organizationName: data.data.organizationName,
-                    employeeId: data.data.employeeId,
-                    fullName: data.data.fullName,
-                });
-
-                const reportResponse = await fetch(`https://screeningstar.onrender.com/Screeningstar/generatereport/${applicationId}`, {
-                    method: "GET",
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-
-                if (reportResponse.ok) {
-                    const reportData = await reportResponse.json();
-                    const formDataa = JSON.parse(reportData.data.formjson).formData;
-                    console.log('fdata', formData);
-                    setFormData({
-                        applicantName: data.data.fullName,
-                        contactNumber: formData.contactNumber || formDataa.contactNumber,
-                        monthYear: data.data.createdAt,
-                        initiationDate: data.data.updatedAt,
-                        clientOrganization: data.data.organizationName,
-                        verificationPurpose: formData.verificationPurpose || formDataa.verificationPurpose,
-                        applicantEmployeeID: data.data.employeeId,
-                        clientCode: data.data.clientId,
-                        contactNumber2: formData.contactNumber2 || formDataa.contactNumber2,
-                        fatherFullName: formData.fatherFullName || formDataa.fatherFullName,
-                        dateOfBirth: formData.dateOfBirth || formDataa.dateOfBirth,
-                        gender: formData.gender || formDataa.gender,
-                        maritalStatus: formData.maritalStatus || formDataa.maritalStatus,
-                        nationality: formData.nationality || formDataa.nationality,
-                        insuffClearedDate: formData.insuffClearedDate || formDataa.insuffClearedDate,
-                        full_address: formData.full_address || formDataa.full_address,
-                        stay_from: formData.stay_from || formDataa.stay_from,
-                        stay_to: formData.stay_to || formDataa.stay_to,
-                        landmark: formData.landmark || formDataa.landmark,
-                        pin_code: formData.pin_code || formDataa.pin_code,
-                        state: formData.state || formDataa.state,
-                        ca_full_address: formData.ca_full_address || formDataa.ca_full_address,
-                        ca_landmark: formData.ca_landmark || formDataa.ca_landmark,
-                        ca_residence_mobile_no: formData.ca_residence_mobile_no || formDataa.ca_residence_mobile_no,
-                        ca_state: formData.ca_state || formDataa.ca_state,
-                        firstLevelRemarks: formData.firstLevelRemarks || formDataa.firstLevelRemarks,
-                        firstInsuffRaisedDate: formData.firstInsuffRaisedDate || formDataa.firstInsuffRaisedDate,
-                        firstInsuffClearedDate: formData.firstInsuffClearedDate || formDataa.firstInsuffClearedDate,
-                        secondLevelRemarks: formData.secondLevelRemarks || formDataa.secondLevelRemarks,
-                        secondInsuffRaisedDate: formData.secondInsuffRaisedDate || formDataa.secondInsuffRaisedDate,
-                        secondInsuffClearedDate: formData.secondInsuffClearedDate || formDataa.secondInsuffClearedDate,
-                        thirdLevelRemarks: formData.thirdLevelRemarks || formDataa.thirdLevelRemarks,
-                        thirdInsuffRaisedDate: formData.thirdInsuffRaisedDate || formDataa.thirdInsuffRaisedDate,
-                        thirdInsuffClearedDate: formData.thirdInsuffClearedDate || formDataa.thirdInsuffClearedDate,
-                        overallStatus: formData.overallStatus || formDataa.overallStatus,
-                        reportDate: formData.reportDate || formDataa.reportDate,
-                        verificationInitiated: formData.verificationInitiated || formDataa.verificationInitiated,
-                        deadlineDate: formData.deadlineDate || formDataa.deadlineDate,
-                        reportStatus: formData.reportStatus || formDataa.reportStatus,
-                        reportType: formData.reportType || formDataa.reportType,
-                        reportGeneratedBy: formData.reportGeneratedBy || formDataa.reportGeneratedBy,
-                        qcDoneBy: formData.qcDoneBy || formDataa.reportTyqcDoneBype,
-                        verificationStatus: formData.verificationStatus || formDataa.verificationStatus,
-                        qualityTeamVerification: formData.qualityTeamVerification || formDataa.qualityTeamVerification,
-                        remarks: formData.remarks || formDataa.remarks,
-                        reasonForDelay: formData.reasonForDelay || formDataa.reasonForDelay,
-                    });
-                }
-            } catch (error) {
-                console.error("Error fetching application data:", error);
-            } finally {
-                setLoading(false);
-            }
+        const requestOptions = {
+            method: "GET",
+            redirect: "follow"
         };
 
+        fetch(`https://screeningstar-new.onrender.com/client-master-tracker/application-by-id?application_id=${applicationId}&branch_id=${branchid}&admin_id=${adminId}&_token=${token}`, requestOptions)
+            .then((response) => response.json())
+            .then((result) => {
+                const newToken = result.token || result._token || '';
+                if (newToken) {
+                    localStorage.setItem("_token", newToken);
+                }
+                const application = result.application;
+                const formDataa = result.cmtData || [];
+                const services = application.services;
+                console.log(`services - `, services);
+                fetchServicesJson(services);
+                setServicesForm(services);
+                console.log(`ServicesForm - `, servicesForm);
+                setServicesData(result);
+
+                setFormData({
+                    applicantName: formData.applicantName || application.name || '',
+                    application_id: formData.application_id || application.application_id || '',
+                    contactNumber: formData.contactNumber || application.contactNumber || '',
+                    monthYear: formData.monthYear || '',
+                    initiationDate: formData.initiationDate || application.created_at || '',
+                    clientOrganization: formData.clientOrganization || application.name || '',
+                    verificationPurpose: formData.verificationPurpose || formDataa.verificationPurpose || '',
+                    applicantEmployeeID: formData.applicantEmployeeID || application.employee_id || '',
+                    clientCode: formData.clientCode || '',
+                    contactNumber2: formData.contactNumber2 || formDataa.contactNumber2 || '',
+                    fatherFullName: formData.fatherFullName || formDataa.fatherFullName || '',
+                    dateOfBirth: formData.dateOfBirth || formDataa.dateOfBirth || '',
+                    gender: formData.gender || formDataa.gender || '',
+                    maritalStatus: formData.maritalStatus || formDataa.maritalStatus || '',
+                    nationality: formData.nationality || formDataa.nationality || '',
+                    insuffClearedDate: formData.insuffClearedDate || formDataa.insuffClearedDate || '',
+                    full_address: formData.full_address || formDataa.full_address || '',
+                    stay_from: formData.stay_from || formDataa.stay_from || '',
+                    stay_to: formData.stay_to || formDataa.stay_to || '',
+                    landmark: formData.landmark || formDataa.landmark || '',
+                    pin_code: formData.pin_code || formDataa.pin_code || '',
+                    state: formData.state || formDataa.state || '',
+                    ca_full_address: formData.ca_full_address || formDataa.ca_full_address || '',
+                    ca_landmark: formData.ca_landmark || formDataa.ca_landmark || '',
+                    ca_residence_mobile_no: formData.ca_residence_mobile_no || formDataa.ca_residence_mobile_no || '',
+                    ca_state: formData.ca_state || formDataa.ca_state || '',
+                    firstLevelRemarks: formData.firstLevelRemarks || formDataa.firstLevelRemarks || '',
+                    firstInsuffRaisedDate: formData.firstInsuffRaisedDate || formDataa.firstInsuffRaisedDate || '',
+                    firstInsuffClearedDate: formData.firstInsuffClearedDate || formDataa.firstInsuffClearedDate || '',
+                    secondLevelRemarks: formData.secondLevelRemarks || formDataa.secondLevelRemarks || '',
+                    secondInsuffRaisedDate: formData.secondInsuffRaisedDate || formDataa.secondInsuffRaisedDate || '',
+                    secondInsuffClearedDate: formData.secondInsuffClearedDate || formDataa.secondInsuffClearedDate || '',
+                    thirdLevelRemarks: formData.thirdLevelRemarks || formDataa.thirdLevelRemarks || '',
+                    thirdInsuffRaisedDate: formData.thirdInsuffRaisedDate || formDataa.thirdInsuffRaisedDate || '',
+                    thirdInsuffClearedDate: formData.thirdInsuffClearedDate || formDataa.thirdInsuffClearedDate || '',
+                    overallStatus: formData.overallStatus || formDataa.overallStatus || '',
+                    reportDate: formData.reportDate || formDataa.reportDate || '',
+                    verificationInitiated: formData.verificationInitiated || formDataa.verificationInitiated || '',
+                    deadlineDate: formData.deadlineDate || formDataa.deadlineDate || '',
+                    reportStatus: formData.reportStatus || formDataa.reportStatus || '',
+                    reportType: formData.reportType || formDataa.reportType || '',
+                    reportGeneratedBy: formData.reportGeneratedBy || formDataa.reportGeneratedBy || '',
+                    qcDoneBy: formData.qcDoneBy || formDataa.reportTyqcDoneBype || '',
+                    verificationStatus: formData.verificationStatus || formDataa.verificationStatus || '',
+                    qualityTeamVerification: formData.qualityTeamVerification || formDataa.qualityTeamVerification || '',
+                    remarks: formData.remarks || formDataa.remarks || '',
+                    reasonForDelay: formData.reasonForDelay || formDataa.reasonForDelay || '',
+                });
+                setLoading(false); // Set loading to false after data is loaded
+            })
+            .catch((error) => {
+                console.error(error);
+                setLoading(false);
+            });
+    }, [applicationId, branchid]);
+
+    const fetchServicesJson = useCallback((servicesList) => {
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
+        console.log(`servicesList - `, servicesList);
+        if (!servicesList || servicesList.length === 0) {
+            console.log("No services available.");
+            return; // Exit the function if the string is empty or undefined
+        }
+
+        // If servicesList is a non-empty string, continue processing
+        const serviceIds = servicesList.split(",");
+        // Ensure this is a string
+        console.log(`serviceIds - `, serviceIds);
+
+        const fetchService = (serviceId) => {
+            const requestOptions = {
+                method: "GET",
+                redirect: "follow"
+            };
+
+            return fetch(`https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`, requestOptions)
+                .then((response) => {
+                    if (response.ok && response.status) {
+                        return response.json();  // Only parse JSON if response is successful and status is 200
+                    }
+                })
+                .catch((error) => console.error(`Error fetching service ${serviceId}:`, error));
+        };
+
+        Promise.all(serviceIds.map((id) => fetchService(id)))
+            .then((results) => {
+                const newToken = results.token || results._token || '';
+                if (newToken) {
+                    localStorage.setItem("_token", newToken);
+                }
+                const filteredResults = results.filter(item => item != null);
+                console.log(`results - `, filteredResults); // Log all results at once
+                setServicesDataInfo( filteredResults || []);
+
+            })
+            .catch((error) => console.error('Error fetching services:', error));
+        console.log(`ServicesDataInfo - `, servicesDataInfo);
+    }, []);  // Adding servicesForm as a dependency
+
+
+    useEffect(() => {
         fetchApplicationData();
-    }, []);
+    }, [fetchApplicationData]);
+    useEffect(() => {
+        fetchServicesJson();
+    }, [fetchServicesJson]);
+
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -179,63 +217,59 @@ const GenerateReport = () => {
         }));
     };
 
-    const handleSubmit = async (e) => {
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormValues((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
+
+
+    const handleSubmit = (e) => {
         e.preventDefault();
 
-        const token = localStorage.getItem('token');
-        const formDataArray = [];
+        const submissionData = servicesDataInfo.map((serviceData) => {
+            if (serviceData.status) {
+                const formJson = JSON.parse(serviceData.reportFormJson.json);
+                if (formJson) {
+                    const annexure = {}; // Initialize annexure for nested fields
 
-        if (servicesData) {
-            Object.entries(servicesData).forEach(([key, service]) => {
-                if (service?.formjson) {
-                    const serviceInputs = {};
+                    formJson.rows.forEach((row) => {
+                        row.inputs.forEach((input) => {
+                            const fieldName = input.name;
+                            const fieldValue = formValues[fieldName] || '';
+                            const tableKey = formJson.db_table;
 
-                    service.formjson.rows.forEach(row => {
-                        row.inputs.forEach(input => {
-                            serviceInputs[`${row.label}_${input.name}`] = formData[input.name];
+                            if (fieldName.startsWith('annexure.')) {
+                                // Handle annexure fields (e.g., annexure.court_verification.court_name)
+                                const [, category, key] = fieldName.split('.');
+                                if (!annexure[category]) {
+                                    annexure[category] = {}; // Create the annexure table if not exists
+                                }
+                                annexure[category][key] = fieldValue;
+                            } else {
+                                // For non-annexure fields, add directly under annexure[db_table]
+                                if (!annexure[tableKey]) {
+                                    annexure[tableKey] = {};
+                                }
+                                annexure[tableKey][fieldName] = fieldValue;
+                            }
                         });
                     });
-                    formDataArray.push({
-                        serviceName: service.serviceTitle,
-                        serviceHeading: service.formjson.heading,
-                        inputs: serviceInputs,
-                       
 
-                    });
+                    return { annexure };
                 }
-            });
-        }
 
-        const payload = {
-            ...userDetails,
-            referenceId,
-            formjson: {
-                formDataArray,
-                formData,
-                ...userDetails,
-            },
-        };
-
-        try {
-            const response = await fetch("https://screeningstar.onrender.com/Screeningstar/generatereport", {
-                method: "POST",
-                body: JSON.stringify(payload),
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    "Content-Type": "application/json",
-                },
-            });
-
-            if (!response.ok) {
-                const errorResponse = await response.json();
-                console.error("Failed to submit form:", errorResponse);
-            } else {
-                console.log("Form submitted successfully!");
             }
-        } catch (error) {
-            console.error("Error submitting form:", error);
-        }
+        });
+
+        setSubmittedData(submissionData);
+        const filteredData = submissionData.filter(item => item != null);
+        console.log('Submitted Data:', filteredData); // Log to console
     };
+
+
 
 
     return (
@@ -250,9 +284,9 @@ const GenerateReport = () => {
                             <label htmlFor="apid" className="block text-gray-700">Reference ID</label>
                             <input
                                 type="text"
-                                name="apidoo"
+                                name="application_id"
                                 id="apidoo"
-                                value={referenceId}
+                                value={formData.application_id}
                                 readOnly
                                 className="w-full p-3 mb-4 border border-gray-300 rounded-md"
                             />
@@ -267,7 +301,7 @@ const GenerateReport = () => {
                                         name="monthYear"
                                         id="monthYear"
                                         placeholder="Month - Year*"
-                                        value={userDetails.createdAt}
+                                        value={formData.monthYear}
                                         onChange={handleChange}
                                         className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
 
@@ -280,7 +314,7 @@ const GenerateReport = () => {
                                         name="initiationDate"
                                         id="initiationDate"
                                         placeholder={inputType === 'text' ? 'Inflation Date' : ''}
-                                        value={userDetails.updatedAt}
+                                        value={formData.initiationDate}
                                         onChange={handleChange}
                                         onFocus={handleFocus}
                                         onBlur={handleBlur}
@@ -296,7 +330,7 @@ const GenerateReport = () => {
                                         type="text"
                                         name="clientOrganization"
                                         id="clientOrganization"
-                                        value={userDetails.organizationName}
+                                        value={formData.clientOrganization}
                                         onChange={handleChange}
                                         placeholder="Name of the Client Organization"
                                         className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
@@ -326,7 +360,7 @@ const GenerateReport = () => {
                                         type="text"
                                         name="applicantEmployeeID"
                                         id="applicantEmployeeID"
-                                        value={userDetails.employeeId}
+                                        value={formData.applicantEmployeeID}
                                         onChange={handleChange}
                                         placeholder="Applicant Employee ID"
                                         className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
@@ -340,7 +374,7 @@ const GenerateReport = () => {
                                         type="text"
                                         name="clientCode"
                                         id="clientCode"
-                                        value={userDetails.clientId}
+                                        value={formData.clientCode}
                                         onChange={handleChange}
                                         placeholder="Client Code"
                                         className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
@@ -355,7 +389,7 @@ const GenerateReport = () => {
                                         type="text"
                                         name="applicantName"
                                         id="applicantName"
-                                        value={userDetails.fullName}
+                                        value={formData.applicantName}
                                         onChange={handleChange}
                                         placeholder="Name of the Applicant*"
                                         className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
@@ -482,8 +516,8 @@ const GenerateReport = () => {
                             </div>
 
                             <div className='permanentaddress '>
-                                <div permanent address
-                                    className="space-y-4 py-[30px]  border border-[#3e76a5] px-[51px] bg-white rounded-md" id="address-form"
+                                <div className='my-4'>permanent address</div>
+                                <div className="space-y-4 py-[30px]  border border-[#3e76a5] px-[51px] bg-white rounded-md" id="address-form"
                                 >
                                     <div className="grid grid-cols-1 gap-4">
                                         <div className="flex flex-col">
@@ -580,7 +614,7 @@ const GenerateReport = () => {
                                 </div>
                             </div>
                             <div className='currentaddress '>
-                                <div>Current address </div>
+                                <div className='my-4'>Current address </div>
                                 <div class="addresses border border-[#3e76a5] p-5 mb-5 rounded-md">
                                     <div class="grid grid-cols-1 gap-4">
 
@@ -669,61 +703,56 @@ const GenerateReport = () => {
                                 ) : null
                             ))}
                         </div>
-
-                        {servicesData && Object.entries(servicesData).map(([key, service]) => (
-                            service?.formjson ? (
-                                <div key={service.serviceId} className="mt-8">
-                                    <h3 className="text-xl font-bold text-left uppercase py-2">{service.sub_serviceName}</h3>
-                                    <table className="min-w-full border-collapse border border-black rounded-lg">
-                                        <thead className="bg-[#ed8f1c] text-white">
-                                            <tr>
-                                                <th colSpan="3" className="border border-black px-4 py-2 uppercase text-center">
-                                                    {service.formjson.heading}
-                                                </th>
-                                            </tr>
-                                            <tr>
-                                                {service.formjson.headers.map((header, index) => (
-                                                    <th key={index} className="border border-black px-4 py-2">
-                                                        {header}
-                                                    </th>
+                        {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
+                            if (serviceData.status) {
+                                const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                return (
+                                    <div key={index} className="p-6 bg-white shadow-md rounded-lg mb-6">
+                                        <h2 className="text-2xl text-center font-semibold text-gray-800 mb-4">{formJson.heading}</h2>
+                                        {formJson.rows.map((row, rowIndex) => (
+                                            <div key={rowIndex} className="space-y-4">
+                                                <label className="block text-gray-700 font-medium">{row.label}</label>
+                                                {row.inputs.map((input, inputIndex) => (
+                                                    <div key={inputIndex} className="mb-4">
+                                                        {input.type !== "dropdown" ? (
+                                                            <input
+                                                                type={input.type}
+                                                                name={input.name}
+                                                                value={formValues[input.name] || ""}
+                                                                onChange={handleInputChange}
+                                                                placeholder={input.name}
+                                                                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            />
+                                                        ) : (
+                                                            <select
+                                                                name={input.name}
+                                                                value={formValues[input.name] || ""}
+                                                                onChange={handleInputChange}
+                                                                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            >
+                                                                {input.options.map((option, optionIndex) => (
+                                                                    <option key={optionIndex} value={option.value}>
+                                                                        {option.showText}
+                                                                    </option>
+                                                                ))}
+                                                            </select>
+                                                        )}
+                                                    </div>
                                                 ))}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {service.formjson.rows.map((row, rowIndex) => {
-                                                // Determine if the current row's label is the same as the previous row's label
-                                                const isSameAsPrevious =
-                                                    rowIndex > 0 && row.label === service.formjson.rows[rowIndex - 1].label;
+                                            </div>
+                                        ))}
+                                    </div>
+                                );
+                            } else {
+                                return (
+                                    <p key={index} className="text-red-500 font-semibold">
+                                        Error fetching form data for service: {serviceData.message}
+                                    </p>
+                                );
+                            }
+                        })}
 
-                                                return (
-                                                    <tr key={rowIndex}>
-                                                        {/* Conditionally render the label */}
-                                                        <td className="border border-black px-4 py-2">
-                                                            {!isSameAsPrevious ? row.label : ''}
-                                                        </td>
 
-                                                        {/* Render inputs */}
-                                                        {row.inputs.map((input, inputIndex) => (
-                                                            <td key={inputIndex} className="border border-black px-4 py-2">
-                                                                <input
-                                                                    type={input.type}
-                                                                    name={input.name}
-                                                                    id={input.name}
-                                                                    value={formData[input.name] || ''}
-                                                                    onChange={handleChange}
-                                                                    className="w-full p-3 border border-gray-300 rounded-md"
-                                                                />
-                                                            </td>
-                                                        ))}
-                                                    </tr>
-                                                );
-                                            })}
-                                        </tbody>
-
-                                    </table>
-                                </div>
-                            ) : null
-                        ))}
                         <div className='form2'>
                             <div className="grid grid-cols-1 gap-4">
                                 <div className="flex flex-col mb-5">
@@ -1073,7 +1102,7 @@ const GenerateReport = () => {
                     </form>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 
