@@ -4,13 +4,11 @@ import { jsPDF } from "jspdf";
 import "jspdf-autotable";
 
 const AdminChekin = () => {
+    const [servicesDataInfo, setServicesDataInfo] = useState('');
+
     const navigate = useNavigate();
     const location = useLocation();
     const [data, setData] = useState([]);
-    const [formData, setFormData] = useState([]);
-    const [cmtData, setCmtData] = useState([]);
-    const [branchInfo, setBranchInfo] = useState([]);
-    const [customerInfo, setCustomerInfo] = useState([]);
     const [reportData, setReportData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -43,355 +41,392 @@ const AdminChekin = () => {
     }, [branchId, adminId, token, setData]);
 
 
-    const extractedVerificationStatuses = Object.values(reportData).map(item => item.parsedFormData.formData.verificationStatus);
+    const fetchServicesJson = async (applicationId, servicesList) => {
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
 
-    const generatePDF = async () => {
+        if (!servicesList || servicesList.length === 0) {
+            return []; // Return an empty array if the list is empty or undefined
+        }
+
+        // Convert servicesList to an array of service IDs
+        const serviceIds = servicesList.split(",");
+
+        const fetchService = async (serviceId) => {
+            try {
+                const requestOptions = {
+                    method: "GET",
+                    redirect: "follow",
+                };
+
+                const response1 = await fetch(
+                    `https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`,
+                    requestOptions
+                );
+
+                if (response1.ok) {
+                    const serviceData = await response1.json();
+                    const newToken = response1.token || response1._token || '';
+                    if (newToken) {
+                        localStorage.setItem("_token", newToken);
+                    }
+
+                    // Fetch the application service if the first request is successful
+                    const applicationRequestOptions = {
+                        method: "GET",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+
+                    const response2 = await fetch(
+                        `https://screeningstar-new.onrender.com/client-master-tracker/application-service?service_id=${serviceId}&application_id=${applicationId}&admin_id=${adminId}&_token=${token}`,
+                        applicationRequestOptions
+                    );
+
+                    if (response2.ok) {
+                        const newToken = response2.token || response2._token || '';
+                        if (newToken) {
+                            localStorage.setItem("_token", newToken);
+                        }
+                        const result2 = await response2.json();
+                        serviceData.annexureData = result2.annexureData;
+                    } else {
+                        serviceData.annexureData = [];
+                    }
+
+                    return serviceData; // Return the service data with annexureData
+                }
+                return null;
+            } catch (error) {
+                console.error(`Error fetching service ${serviceId}:`, error);
+                return null;
+            }
+        };
+
+        try {
+            // Use Promise.all to fetch all services concurrently
+            const results = await Promise.all(serviceIds.map(fetchService));
+
+            const filteredResults = results.filter((item) => item != null);
+            const newToken = filteredResults.find((result) => result?.token || result?._token);
+            if (newToken) {
+                localStorage.setItem("_token", newToken.token || newToken._token);
+            }
+
+            // Return the filtered results to be used in the calling function
+            return filteredResults;
+        } catch (error) {
+            console.error('Error fetching services:', error);
+            return [];
+        }
+    };
+
+    const getServicesData = async (applicationId, servicesList) => {
+        try {
+            const servicesData = await fetchServicesJson(applicationId, servicesList);
+            return servicesData;
+        } catch (error) {
+            console.error('Error in getServicesData:', error);
+            return [];
+        }
+    };
+    const generatePDF = async (index) => {
+        const applicationInfo = data[index];
+        const servicesData = await getServicesData(applicationInfo.main_id, applicationInfo.services);
+        console.log('servicesData - ', servicesData);
+
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         let yPosition = 10;
 
-        const requestOptions = {
-            method: "GET",
-            redirect: "follow"
+        const sideMargin = 10;
+
+        // const formData = data.formData;
+
+        // Dynamic data for title and report details
+        const mainTitle = "BACKGROUND VERIFICATION REPORT";
+        const applicantPhoto = applicationInfo.photo
+            ? `https://screeningstar-new.onrender.com/${applicationInfo.photo}`
+            : 'http://localhost:3000/demo/screening/static/media/admin-logo.705fd0ed553f4768abb4.png?w=771&ssl=1';
+
+        const checkImageExistence = async (imageUrl) => {
+            try {
+                const response = await fetch(imageUrl, { method: 'HEAD' });
+                if (response.ok) {
+                    return imageUrl;
+                } else {
+                    return 'http://localhost:3000/demo/screening/static/media/admin-logo.705fd0ed553f4768abb4.png?w=771&ssl=1';
+                }
+            } catch (error) {
+                // If there is an error (e.g., network issue), use the local fallback image
+                return 'http://localhost:3000/demo/screening/static/media/admin-logo.705fd0ed553f4768abb4.png?w=771&ssl=1';
+            }
         };
 
-      
+        // Usage
+        const imageUrlToUse = await checkImageExistence(applicantPhoto);
+
+
+        const imgWidth = 60;
+        const imgHeight = 20;
+        doc.addImage(imageUrlToUse, 'PNG', 10, 10, imgWidth, imgHeight);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Screeningstar Solutions Pvt Ltd", 10, 35);
+        doc.setFont("helvetica", "normal");
+        doc.text("No 93/9, Varthur Main Road", 10, 40);
+        doc.text("Marathahalli, Bangalore, Karnataka,", 10, 45);
+        doc.text("India, Pin Code - 560037", 10, 50);
+
+        const imgBoxX = pageWidth - 40;
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text(applicationInfo.name || '', imgBoxX + 15, 20, { align: 'center' });
+        doc.rect(imgBoxX, 23, 30, 23);
+        doc.text(applicationInfo.name || '', imgBoxX + 15, 50, { align: 'center' });
+
+        doc.setLineWidth(1);
+        doc.line(10, 55, pageWidth - 10, 55);
+
+        const titleWidth = pageWidth - 2 * sideMargin; // Adjust width for equal margins
+        doc.setFillColor(246, 246, 246);
+        doc.rect(sideMargin, 60, titleWidth, 8, 'F'); // Centered background rectangle with equal side gaps
+        doc.setDrawColor(62, 118, 165);
+        doc.setLineWidth(0.3);
+        doc.rect(sideMargin, 60, titleWidth, 8); // Centered border rectangle with equal side gaps
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text(mainTitle, pageWidth / 2, 66, { align: 'center' });
+
+        const headerTableData = [
+            ["SCREENINGSTAR REF ID", applicationInfo.application_id, "DATE OF BIRTH", applicationInfo.dob || "N/A"],
+            ["EMPLOYEE ID", applicationInfo.employee_id || "N/A", "INSUFF CLEARED", applicationInfo.insuff_cleared_date || "N/A"],
+            ["VERIFICATION INITIATED", applicationInfo.verification_initiated || "N/A", "FINAL REPORT DATE", applicationInfo.report_date || "N/A"],
+            ["VERIFICATION PURPOSE", applicationInfo.verification_purpose || "Employment", "VERIFICATION STATUS", applicationInfo.final_verification_status || "N/A"],
+            ["REPORT TYPE", applicationInfo.report_type || "Employment", "REPORT STATUS", applicationInfo.report_status || "N/A"]
+        ];
+
+        doc.autoTable({
+            body: headerTableData,
+            startY: 75,
+            styles: {
+                fontSize: 10,
+                cellPadding: 2,
+                textColor: [0, 0, 0],
+            },
+            columnStyles: {
+                0: { fontStyle: "bold", },
+                2: { fontStyle: "bold", },
+            },
+            theme: 'grid',
+            headStyles: {
+                fillColor: [62, 118, 165],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold'
+            },
+            tableLineColor: [62, 118, 165],
+            tableLineWidth: 0.5,
+            margin: { left: sideMargin, right: sideMargin, bottom: 20 }
+        });
+
+        const SummaryTitle = "SUMMARY OF THE VERIFICATION CONDUCTED";
+        const padding = 3;
+        const backgroundColor = '#f5f5f5';
+        const borderColor = '#3d75a6';
+        const xsPosition = 10;
+        const ysPosition = 120;
+        const fullWidth = pageWidth - 20;
+        const rectHeight = 10;
+
+        doc.setFillColor(backgroundColor);
+        doc.setDrawColor(borderColor);
+        doc.rect(xsPosition, ysPosition, fullWidth, rectHeight, 'FD');
+        doc.text(SummaryTitle, pageWidth / 2, ysPosition + 7, { align: 'center' });
+
+        const marginTop = 5;
+        const nextContentYPosition = ysPosition + rectHeight + marginTop;
+
+        doc.autoTable({
+            head: [
+                [
+                    { content: 'SCOPE OF SERVICES / COMPONENT', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'INFORMATION VERIFIED BY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'VERIFIED DATE', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'VERIFICATION STATUS', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                ]
+            ],
+            body: servicesData.map(service => [
+                {
+                    content: JSON.parse(service.reportFormJson.json).heading, // Adjust as needed based on the JSON structure
+                    styles: { minCellHeight: 20, cellPadding: 5 }
+                },
+                {
+                    content: service.annexureData[Object.keys(service.annexureData).find(key => key.endsWith('info_source'))] || "N/A",
+                    styles: { minCellHeight: 20, cellPadding: 5 }
+                },
+                {
+                    content: service.annexureData.created_at
+                        ? new Date(service.annexureData.created_at).toLocaleDateString('en-GB', {
+                            day: '2-digit',
+                            month: 'short',
+                            year: 'numeric'
+                        })
+                        : "N/A", // Format date as "12 Jan 2024" or "N/A" if missing
+                    styles: { minCellHeight: 20, cellPadding: 5 }
+                },
+                {
+                    content: service.annexureData.status || "Not Verified", // Default to "Not Verified" if status is empty
+                    styles: { minCellHeight: 20, cellPadding: 5 }
+                }
+            ]),
+            startY: nextContentYPosition,
+            styles: {
+                fontSize: 8,
+                cellPadding: 3,
+                halign: 'center',
+                valign: 'middle',
+                lineWidth: 0.5,
+                lineColor: [0, 0, 0],
+            },
+            theme: 'grid',
+            headStyles: {
+                fillColor: [246, 246, 246],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold',
+            },
+            tableLineColor: [0, 0, 0],
+            tableLineWidth: 0.5,
+            margin: { left: 10, right: 10 },
+            tableWidth: 'auto',
+            columnStyles: {
+                0: { cellWidth: 47.5 },
+                1: { cellWidth: 47.5 },
+                2: { cellWidth: 47.5 },
+                3: { cellWidth: 47.5 },
+            },
+        });
+
+
+        doc.autoTable({
+            head: [
+                [
+                    { content: "COLOR CODE / ADJUDICATION MATRIX", colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [246, 246, 246] } }
+                ],
+                [
+                    { content: 'MAJOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'MINOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'UNABLE TO VERIFY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
+                    { content: 'PENDING FROM SOURCE', styles: { halign: 'center', cellWidth: 'nowrap', minCellWidth: 10 } },
+                    { content: 'ALL CLEAR', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } }
+                ]
+            ],
+            body: [
+                [
+                    { content: '', styles: { fillColor: [255, 0, 0], minCellHeight: 20, cellPadding: 3 }, cellWidth: 10 },
+                    { content: '', styles: { fillColor: [255, 255, 0], minCellHeight: 20, cellPadding: 3 } }, // Yellow
+                    { content: '', styles: { fillColor: [255, 165, 0], minCellHeight: 20, cellPadding: 3 } }, // Orange
+                    { content: '', styles: { fillColor: [255, 192, 203], minCellHeight: 20, cellPadding: 3 } }, // Pink
+                    { content: '', styles: { fillColor: [0, 128, 0], minCellHeight: 20, cellPadding: 3 } } // Green
+                ]
+            ],
+            startY: doc.previousAutoTable ? doc.previousAutoTable.finalY + 10 : 10,
+            styles: {
+                fontSize: 8,
+                cellPadding: 2,
+                halign: 'center',
+                valign: 'middle',
+                lineWidth: 0.5,
+                lineColor: [0, 0, 0],
+            },
+            theme: 'grid',
+            headStyles: {
+                fillColor: [246, 246, 246],
+                textColor: [0, 0, 0],
+                fontStyle: 'bold'
+            },
+            tableLineColor: [0, 0, 0],
+            tableLineWidth: 0.5,
+            margin: { left: 10, right: 10 },
+            tableWidth: 'auto',
+            columnStyles: {
+                0: { cellWidth: 38, cellMargin: 5 }, // Adjust cell width and Margin as needed
+                1: { cellWidth: 38, cellMargin: 5 },
+                2: { cellWidth: 38, cellMargin: 5 },
+                3: { cellWidth: 38, cellMargin: 5 },
+                4: { cellWidth: 38, cellMargin: 5 }
+            },
+        });
+
+        yPosition = doc.autoTable.previous.finalY + 10;
         
-            const sideMargin = 10;
-          
-            // const formData = data.formData;
-
-            // Dynamic data for title and report details
-            const mainTitle = "BACKGROUND VERIFICATION REPORT";
-            const applicantName = data.name || "Applicant";
-            const logoImg = "http://localhost:3000/demo/screening/static/media/admin-logo.705fd0ed553f4768abb4.png?w=771&ssl=1";
-            const imgWidth = 60;
-            const imgHeight = 20;
-            doc.addImage(logoImg, 'PNG', 10, 10, imgWidth, imgHeight);
+        servicesData.forEach((service, index) => {
+            const reportFormJson = JSON.parse(service.reportFormJson.json);
+            const rows = reportFormJson.rows;
+            const dbTableHeading = reportFormJson.heading;
+        
+            // Add main heading for the service
             doc.setFont("helvetica", "bold");
-            doc.setFontSize(12);
-            doc.text("Screeningstar Solutions Pvt Ltd", 10, 35);
-            doc.setFont("helvetica", "normal");
-            doc.text("No 93/9, Varthur Main Road", 10, 40);
-            doc.text("Marathahalli, Bangalore, Karnataka,", 10, 45);
-            doc.text("India, Pin Code - 560037", 10, 50);
-
-            const imgBoxX = pageWidth - 40;
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            doc.text(data.name, imgBoxX + 15, 20, { align: 'center' });
-            doc.rect(imgBoxX, 23, 30, 23);
-            doc.text(data.name, imgBoxX + 15, 50, { align: 'center' });
-
-            doc.setLineWidth(1);
-            doc.line(10, 55, pageWidth - 10, 55);
-
-            const titleWidth = pageWidth - 2 * sideMargin; // Adjust width for equal margins
-            doc.setFillColor(246, 246, 246);
-            doc.rect(sideMargin, 60, titleWidth, 8, 'F'); // Centered background rectangle with equal side gaps
-            doc.setDrawColor(62, 118, 165);
-            doc.setLineWidth(0.3);
-            doc.rect(sideMargin, 60, titleWidth, 8); // Centered border rectangle with equal side gaps
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            doc.text(mainTitle, pageWidth / 2, 66, { align: 'center' });
-
-            const headerTableData = [
-                ["SCREENINGSTAR REF ID", data.application_id, "DATE OF BIRTH", data.dob || "N/A"],
-                ["EMPLOYEE ID", data.employee_id || "N/A", "INSUFF CLEARED", data.insuffClearedDate || "N/A"],
-                ["VERIFICATION INITIATED", formData.verificationInitiated || "N/A", "FINAL REPORT DATE", data.reportDate || "N/A"],
-                ["VERIFICATION PURPOSE", formData.verificationPurpose || "Employment", "VERIFICATION STATUS", data.verificationStatus || "N/A"],
-                ["REPORT TYPE", formData.reportType || "Employment", "REPORT STATUS", data.reportStatus || "N/A"]
-            ];
-
-            doc.autoTable({
-                body: headerTableData,
-                startY: 75,
-                styles: {
-                    fontSize: 10,
-                    cellPadding: 2,
-                    textColor: [0, 0, 0],
-                },
-                columnStyles: {
-                    0: { fontStyle: "bold", },
-                    2: { fontStyle: "bold", },
-                },
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [62, 118, 165],
-                    textColor: [0, 0, 0],
-                    fontStyle: 'bold'
-                },
-                tableLineColor: [62, 118, 165],
-                tableLineWidth: 0.5,
-                margin: { left: sideMargin, right: sideMargin, bottom: 20 }
+            doc.setFontSize(14);
+            doc.text(dbTableHeading.toUpperCase(), 105, yPosition); // Centered heading
+            yPosition += 10; // Move position down for the next section
+        
+            // Prepare a list of all service data (inputs)
+            const serviceData = [];
+            rows.forEach((row) => {
+                row.inputs.forEach((input) => {
+                    const inputName = input.name;
+                    const value = service.annexureData[inputName] || ''; // Get the value for the input from annexureData
+                    serviceData.push({ label: inputName, value });
+                });
             });
-
-            const SummaryTitle = "SUMMARY OF THE VERIFICATION CONDUCTED";
-            const padding = 3;
-            const backgroundColor = '#f5f5f5';
-            const borderColor = '#3d75a6';
-            const xsPosition = 10;
-            const ysPosition = 120;
-            const fullWidth = pageWidth - 20;
-            const rectHeight = 10;
-
-            doc.setFillColor(backgroundColor);
-            doc.setDrawColor(borderColor);
-            doc.rect(xsPosition, ysPosition, fullWidth, rectHeight, 'FD');
-            doc.text(SummaryTitle, pageWidth / 2, ysPosition + 7, { align: 'center' });
-
-            const marginTop = 5;
-            const nextContentYPosition = ysPosition + rectHeight + marginTop;
-
+        
+            // Prepare the table data
+            const tableData = serviceData.map((data) => [
+                data.label, // Display field name in "Particulars" column
+                data.value, // Value for "Applicant Details"
+                'N/A' // Default "Verified" column (since no verification data is provided)
+            ]);
+        
+            // Ensure yPosition doesn't overlap with previous table
+            if (index > 0) {
+                yPosition = doc.autoTable.previous.finalY + 10; // Ensure space after previous table
+            }
+        
+            // Generate the table for the service
             doc.autoTable({
                 head: [
-                    [
-                        { content: 'SCOPE OF SERVICES / COMPONENT', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'INFORMATION VERIFIED BY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'VERIFIED DATE', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'VERIFICATION STATUS', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                    ]
+                    ["Particulars", "Applicant Details", "Verified"]
                 ],
-                body: data.map(service => [
-                    { content: service.serviceName, styles: { minCellHeight: 20, cellPadding: 5 } },
-                    { content: service.infoVerifiedBy, styles: { minCellHeight: 20, cellPadding: 5 } },
-                    { content: service.verifyDate, styles: { minCellHeight: 20, cellPadding: 5 } },
-                    { content: service.verificationStatus, styles: { minCellHeight: 20, cellPadding: 5 } }
-                ]),
-                startY: nextContentYPosition,
+                body: tableData,
+                startY: yPosition,
                 styles: {
-                    fontSize: 8,
+                    fontSize: 9,
                     cellPadding: 3,
-                    halign: 'center',
-                    valign: 'middle',
                     lineWidth: 0.5,
-                    lineColor: [0, 0, 0],
+                    lineColor: [0, 0, 0]
                 },
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [246, 246, 246],
-                    textColor: [0, 0, 0],
-                    fontStyle: 'bold',
-                },
-                tableLineColor: [0, 0, 0],
-                tableLineWidth: 0.5,
-                margin: { left: 10, right: 10 },
-                tableWidth: 'auto',
                 columnStyles: {
-                    0: { cellWidth: 47.5 },
-                    1: { cellWidth: 47.5 },
-                    2: { cellWidth: 47.5 },
-                    3: { cellWidth: 47.5 },
-                },
-            });
-
-
-            doc.autoTable({
-                head: [
-                    [
-                        { content: "COLOR CODE / ADJUDICATION MATRIX", colSpan: 5, styles: { halign: 'center', fontStyle: 'bold', fillColor: [246, 246, 246] } }
-                    ],
-                    [
-                        { content: 'MAJOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'MINOR DISCREPANCY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'UNABLE TO VERIFY', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
-                        { content: 'PENDING FROM SOURCE', styles: { halign: 'center', cellWidth: 'nowrap', minCellWidth: 10 } },
-                        { content: 'ALL CLEAR', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } }
-                    ]
-                ],
-                body: [
-                    [
-                        { content: '', styles: { fillColor: [255, 0, 0], minCellHeight: 20, cellPadding: 3 }, cellWidth: 10 },
-                        { content: '', styles: { fillColor: [255, 255, 0], minCellHeight: 20, cellPadding: 3 } }, // Yellow
-                        { content: '', styles: { fillColor: [255, 165, 0], minCellHeight: 20, cellPadding: 3 } }, // Orange
-                        { content: '', styles: { fillColor: [255, 192, 203], minCellHeight: 20, cellPadding: 3 } }, // Pink
-                        { content: '', styles: { fillColor: [0, 128, 0], minCellHeight: 20, cellPadding: 3 } } // Green
-                    ]
-                ],
-                startY: doc.previousAutoTable ? doc.previousAutoTable.finalY + 10 : 10,
-                styles: {
-                    fontSize: 8,
-                    cellPadding: 2,
-                    halign: 'center',
-                    valign: 'middle',
-                    lineWidth: 0.5,
-                    lineColor: [0, 0, 0],
+                    0: { fontStyle: "bold" }
                 },
                 theme: 'grid',
                 headStyles: {
-                    fillColor: [246, 246, 246],
+                    fillColor: [217, 217, 217],
                     textColor: [0, 0, 0],
                     fontStyle: 'bold'
-                },
-                tableLineColor: [0, 0, 0],
-                tableLineWidth: 0.5,
-                margin: { left: 10, right: 10 },
-                tableWidth: 'auto',
-                columnStyles: {
-                    0: { cellWidth: 38, cellMargin: 5 }, // Adjust cell width and Margin as needed
-                    1: { cellWidth: 38, cellMargin: 5 },
-                    2: { cellWidth: 38, cellMargin: 5 },
-                    3: { cellWidth: 38, cellMargin: 5 },
-                    4: { cellWidth: 38, cellMargin: 5 }
-                },
-            });
-
-
-
-
-            yPosition = doc.autoTable.previous.finalY + 10;
-
-
-            data.forEach((service) => {
-                let pageWidth = 210;
-                let rectWidth = 180;
-                let xPosition = (pageWidth - rectWidth) / 2;
-
-                doc.setFillColor(246, 246, 246); // Light gray background color
-                doc.setDrawColor(0, 0, 0); // Black border color
-                doc.rect(xPosition, yPosition, rectWidth, 10, 'FD');
-                doc.setFont("helvetica", "bold");
-                doc.setFontSize(11);
-                doc.text(service.serviceHeading.toUpperCase(), 85, yPosition + 7); // Adjust yPosition for vertical alignment
-                yPosition += 20; // Move position down for the next section
-
-                // Prepare service data where the part before ':' is the 'Particulars' and the part after ':' is 'Verified'
-                const serviceData = Object.entries(service.inputs).map(([key, value]) => {
-                    const parts = key.split(':');  // Split key by ":"
-                    const fieldName = parts[0];    // Before ":"
-                    const verifiedValue = parts.length > 1 ? value : ''; // After ":"
-                    return { fieldName, verifiedValue };
-                });
-
-                // Group by fieldName and collect all corresponding values for 'Verified' column
-                let uniqueData = {};
-                data.forEach((service) => {
-                    let pageWidth = 210;
-                    let rectWidth = 180;
-                    let xPosition = (pageWidth - rectWidth) / 2;
-
-                    doc.setFillColor(246, 246, 246); // Light gray background color
-                    doc.setDrawColor(0, 0, 0); // Black border color
-                    doc.rect(xPosition, yPosition, rectWidth, 10, 'FD');
-                    doc.setFont("helvetica", "bold");
-                    doc.setFontSize(11);
-                    doc.text(service.serviceHeading.toUpperCase(), 85, yPosition + 7);
-                    yPosition += 20;
-
-                    // Prepare service data where the part before ':' is the 'Particulars' and the part after ':' is 'Verified'
-                    const serviceData = Object.entries(service.inputs).map(([key, value]) => {
-                        const parts = key.split(':');  // Split key by ":"
-                        const fieldName = parts[0];    // Before ":"
-                        const verifiedValue = parts.length > 1 ? value : ''; // After ":"
-                        return { fieldName, verifiedValue };
-                    });
-
-                    // Group by fieldName and collect all corresponding values for 'Verified' column
-                    let uniqueData = {};
-                    serviceData.forEach(({ fieldName, verifiedValue }) => {
-                        if (!uniqueData[fieldName]) {
-                            uniqueData[fieldName] = { particulars: fieldName, verifiedValues: [] };
-                        }
-                        if (verifiedValue) {
-                            uniqueData[fieldName].verifiedValues.push(verifiedValue);  // Store all verified values
-                        }
-                    });
-
-                    // Prepare the data for the table with "Particulars", "Applicant Details", and "Verified"
-                    const tableData = Object.entries(uniqueData).map(([fieldName, { particulars, verifiedValues }]) => {
-                        const firstVerifiedValue = verifiedValues.length > 0 ? verifiedValues[0] : 'N/A'; // First value for Applicant Details
-                        const remainingVerifiedValues = verifiedValues.slice(1).join(', ') || 'N/A'; // Remaining values for Verified column
-                        return [
-                            particulars,  // Display field name in "Particulars" column
-                            firstVerifiedValue, // First value for "Applicant Details"
-                            remainingVerifiedValues // Remaining values for "Verified"
-                        ];
-                    });
-
-                    // Generate the table with the required data
-                    doc.autoTable({
-                        head: [
-                            [{ content: service.serviceName.toUpperCase(), colSpan: 3, styles: { halign: 'center', fontStyle: 'bold', fillColor: [217, 217, 217] } }],
-                            ["Particulars", "Applicant Details", "Verified"]
-                        ],
-                        body: tableData,
-                        startY: yPosition,
-                        styles: {
-                            fontSize: 9,
-                            cellPadding: 3,
-                            lineWidth: 0.5,
-                            lineColor: [0, 0, 0]
-                        },
-                        columnStyles: {
-                            0: { fontStyle: "bold" }
-                        },
-                        theme: 'grid',
-                        headStyles: {
-                            fillColor: [217, 217, 217],
-                            textColor: [0, 0, 0],
-                            fontStyle: 'bold'
-                        }
-                    });
-
-                    // Update the yPosition for the next section or page
-                    yPosition = doc.autoTable.previous.finalY + 10;
-
-                    // Check if new page is required, if yes, add a new page and reset yPosition
-                    if (yPosition + 20 > doc.internal.pageSize.getHeight()) {
-                        doc.addPage();
-                        yPosition = 10;
-                    }
-                });
-
-
-                // Prepare the data for the table with "Particulars", "Applicant Details", and "Verified"
-                const tableData = Object.entries(uniqueData).map(([fieldName, { particulars, verifiedValues }]) => [
-                    particulars,
-                    'Applicant Details',
-                    verifiedValues.length > 0 ? verifiedValues.join(', ') : 'N/A' // If no verified values, show 'N/A'
-                ]);
-
-                // Generate the table with the required data
-                doc.autoTable({
-                    head: [
-                        [{ content: service.serviceName.toUpperCase(), colSpan: 3, styles: { halign: 'center', fontStyle: 'bold', fillColor: [217, 217, 217] } }],
-                        ["Particulars", "Applicant Details", "Verified"]
-                    ],
-                    body: tableData,
-                    startY: yPosition,
-                    styles: {
-                        fontSize: 9,
-                        cellPadding: 3,
-                        lineWidth: 0.5,
-                        lineColor: [0, 0, 0]
-                    },
-                    columnStyles: {
-                        0: { fontStyle: "bold" }
-                    },
-                    theme: 'grid',
-                    headStyles: {
-                        fillColor: [217, 217, 217],
-                        textColor: [0, 0, 0],
-                        fontStyle: 'bold'
-                    }
-                });
-
-                // Update the yPosition for the next section or page
-                yPosition = doc.autoTable.previous.finalY + 10;
-
-                // Check if new page is required, if yes, add a new page and reset yPosition
-                if (yPosition + 20 > doc.internal.pageSize.getHeight()) {
-                    doc.addPage();
-                    yPosition = 10;
                 }
             });
+        
+            // Update yPosition for the next section (after the table is rendered)
+            yPosition = doc.lastAutoTable.finalY + 10;
+        });
+        
 
 
 
+        doc.save('SSCD.pdf');
 
-            doc.save('SSCD.pdf');
-      
     };
 
 
@@ -491,7 +526,7 @@ const AdminChekin = () => {
                         </thead>
                         <tbody>
                             {data.map((data, index) => {
-                               
+
                                 return (
                                     <tr key={data.id} className="text-center">
                                         <td className="border px-4 py-2">{index + 1}</td>
@@ -518,7 +553,7 @@ const AdminChekin = () => {
                                         {/* Displaying `additional_fee` for the first item in data or fallback to 'N/A' */}
                                         <td className="border px-4 py-2">
                                             <button
-                                                onClick={() => generatePDF(data.application_id)}
+                                                onClick={() => generatePDF(index)}
                                                 className="bg-white border border-green-500 text-green-500 px-4 py-2 rounded hover:bg-green-500 hover:text-white"
                                             >
                                                 Generate PDF

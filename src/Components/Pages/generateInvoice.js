@@ -4,9 +4,9 @@ const GenerateInvoice = () => {
     return (
         <>
 
-<div className="w-full bg-[#c1dff2] border overflow-hidden">
-<h2 className="text-2xl font-bold py-3 text-left text-[#4d606b] px-3 border">GENERATE INVOICE</h2>
-<div className="bg-white text-left  p-12   w-full mx-auto">
+            <div className="w-full bg-[#c1dff2] border overflow-hidden">
+                <h2 className="text-2xl font-bold py-3 text-left text-[#4d606b] px-3 border">GENERATE INVOICE</h2>
+                <div className="bg-white text-left  p-12   w-full mx-auto">
 
                     <form action="pdf2/inv.php" method="post" enctype="multipart/form-data" target="_blank" autocomplete="off" class="space-y-4">
                         <div>
