@@ -5,7 +5,7 @@ import axios from 'axios';
 const GenerateReport = () => {
     const [submittedData, setSubmittedData] = useState(null); // State to hold submitted data
     const [files, setFiles] = useState([]);
-
+    const [annexureData, setAnnexureData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [servicesForm, setServicesForm] = useState('');
     const [servicesDataInfo, setServicesDataInfo] = useState('');
@@ -77,14 +77,14 @@ const GenerateReport = () => {
     const [selectedStatuses, setSelectedStatuses] = useState(
         new Array(servicesDataInfo.length).fill('')
     );
-    const handleFileChange = (fileName, e) => {
+    const handleFileChange = (index, dbTable, fileName, e) => {
 
         const selectedFiles = Array.from(e.target.files);
 
         // Update the state with the new selected files
         setFiles((prevFiles) => ({
             ...prevFiles,
-            [fileName]: { selectedFiles, fileName },
+            [dbTable]: { selectedFiles, fileName },
         }));
     };
 
@@ -97,7 +97,6 @@ const GenerateReport = () => {
             return updatedStatuses;
         });
     };
-    console.log('formData', formData)
     const allCompleted = selectedStatuses.every(status =>
         status && status.includes('completed')
     );
@@ -138,80 +137,80 @@ const GenerateReport = () => {
                 setFormData(prevFormData => ({
                     ...prevFormData,
                     updated_json: {
-                        month_year: cmtData.month_year || applicationData.month_year || prevFormData.updated_json.month_year,
+                        month_year: cmtData.month_year || applicationData.month_year || prevFormData.updated_json.month_year || '',
                         initiation_date: (cmtData.initiation_date && !isNaN(new Date(cmtData.initiation_date).getTime()))
                             ? new Date(cmtData.initiation_date).toLocaleDateString()
-                            : prevFormData.updated_json.initiation_date,
-                        organization_name: applicationData.name || prevFormData.updated_json.organization_name,
-                        verification_purpose: cmtData.verification_purpose || prevFormData.updated_json.verification_purpose,
-                        employee_id: applicationData.employee_id || prevFormData.updated_json.employee_id,
-                        client_code: cmtData.client_code || prevFormData.updated_json.client_code,
-                        applicant_name: cmtData.applicant_name || prevFormData.updated_json.applicant_name,
-                        contact_number: cmtData.contact_number || prevFormData.updated_json.contact_number,
-                        contact_number2: cmtData.contact_number2 || prevFormData.updated_json.contact_number2,
-                        father_name: cmtData.father_name || prevFormData.updated_json.father_name,
+                            : prevFormData.updated_json.initiation_date || '',
+                        organization_name: applicationData.name || prevFormData.updated_json.organization_name || '',
+                        verification_purpose: cmtData.verification_purpose || prevFormData.updated_json.verification_purpose || '',
+                        employee_id: applicationData.employee_id || prevFormData.updated_json.employee_id || '',
+                        client_code: cmtData.client_code || prevFormData.updated_json.client_code || '',
+                        applicant_name: cmtData.applicant_name || prevFormData.updated_json.applicant_name || '',
+                        contact_number: cmtData.contact_number || prevFormData.updated_json.contact_number || '',
+                        contact_number2: cmtData.contact_number2 || prevFormData.updated_json.contact_number2 || '',
+                        father_name: cmtData.father_name || prevFormData.updated_json.father_name || '',
                         dob: (cmtData.dob && !isNaN(new Date(cmtData.dob).getTime()))
                             ? new Date(cmtData.dob).toLocaleDateString()
-                            : prevFormData.updated_json.dob,
-                        gender: cmtData.gender || prevFormData.updated_json.gender,
-                        marital_status: cmtData.marital_status || prevFormData.updated_json.marital_status,
-                        nationality: cmtData.nationality || prevFormData.updated_json.nationality,
-                        insuff: cmtData.insuff || prevFormData.updated_json.insuff,
+                            : prevFormData.updated_json.dob || '',
+                        gender: cmtData.gender || prevFormData.updated_json.gender || '',
+                        marital_status: cmtData.marital_status || prevFormData.updated_json.marital_status || '',
+                        nationality: cmtData.nationality || prevFormData.updated_json.nationality || '',
+                        insuff: cmtData.insuff || prevFormData.updated_json.insuff || '',
                         address: {
-                            address: cmtData.address || prevFormData.updated_json.address.address,
-                            landmark: cmtData.landmark || prevFormData.updated_json.address.landmark,
-                            residence_mobile_number: cmtData.residence_mobile_number || prevFormData.updated_json.address.residence_mobile_number,
-                            state: cmtData.state || prevFormData.updated_json.address.state,
+                            address: cmtData.address || prevFormData.updated_json.address.address || '',
+                            landmark: cmtData.landmark || prevFormData.updated_json.address.landmark || '',
+                            residence_mobile_number: cmtData.residence_mobile_number || prevFormData.updated_json.address.residence_mobile_number || '',
+                            state: cmtData.state || prevFormData.updated_json.address.state || '',
                         },
                         permanent_address: {
-                            permanent_address: cmtData.permanent_address || prevFormData.updated_json.permanent_address.permanent_address,
-                            permanent_sender_name: cmtData.permanent_sender_name || prevFormData.updated_json.permanent_address.permanent_sender_name,
-                            permanent_receiver_name: cmtData.permanent_receiver_name || prevFormData.updated_json.permanent_address.permanent_receiver_name,
-                            permanent_landmark: cmtData.permanent_landmark || prevFormData.updated_json.permanent_address.permanent_landmark,
-                            permanent_pin_code: cmtData.permanent_pin_code || prevFormData.updated_json.permanent_address.permanent_pin_code,
-                            permanent_state: cmtData.permanent_state || prevFormData.updated_json.permanent_address.permanent_state,
+                            permanent_address: cmtData.permanent_address || prevFormData.updated_json.permanent_address.permanent_address || '',
+                            permanent_sender_name: cmtData.permanent_sender_name || prevFormData.updated_json.permanent_address.permanent_sender_name || '',
+                            permanent_receiver_name: cmtData.permanent_receiver_name || prevFormData.updated_json.permanent_address.permanent_receiver_name || '',
+                            permanent_landmark: cmtData.permanent_landmark || prevFormData.updated_json.permanent_address.permanent_landmark || '',
+                            permanent_pin_code: cmtData.permanent_pin_code || prevFormData.updated_json.permanent_address.permanent_pin_code || '',
+                            permanent_state: cmtData.permanent_state || prevFormData.updated_json.permanent_address.permanent_state || '',
                         },
                         insuffDetails: {
-                            first_insufficiency_marks: cmtData.first_insufficiency_marks || prevFormData.updated_json.insuffDetails.first_insufficiency_marks,
+                            first_insufficiency_marks: cmtData.first_insufficiency_marks || prevFormData.updated_json.insuffDetails.first_insufficiency_marks || '',
                             first_insuff_date: (cmtData.first_insuff_date && !isNaN(new Date(cmtData.first_insuff_date).getTime()))
                                 ? new Date(cmtData.first_insuff_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.first_insuff_date,
+                                : prevFormData.updated_json.insuffDetails.first_insuff_date || '',
                             first_insuff_reopened_date: (cmtData.first_insuff_reopened_date && !isNaN(new Date(cmtData.first_insuff_reopened_date).getTime()))
                                 ? new Date(cmtData.first_insuff_reopened_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.first_insuff_reopened_date,
-                            second_insufficiency_marks: cmtData.second_insufficiency_marks || prevFormData.updated_json.insuffDetails.second_insufficiency_marks,
+                                : prevFormData.updated_json.insuffDetails.first_insuff_reopened_date || '',
+                            second_insufficiency_marks: cmtData.second_insufficiency_marks || prevFormData.updated_json.insuffDetails.second_insufficiency_marks || '',
                             second_insuff_date: (cmtData.second_insuff_date && !isNaN(new Date(cmtData.second_insuff_date).getTime()))
                                 ? new Date(cmtData.second_insuff_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.second_insuff_date,
+                                : prevFormData.updated_json.insuffDetails.second_insuff_date || '',
                             second_insuff_reopened_date: (cmtData.second_insuff_reopened_date && !isNaN(new Date(cmtData.second_insuff_reopened_date).getTime()))
                                 ? new Date(cmtData.second_insuff_reopened_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.second_insuff_reopened_date,
-                            third_insufficiency_marks: cmtData.third_insufficiency_marks || prevFormData.updated_json.insuffDetails.third_insufficiency_marks,
+                                : prevFormData.updated_json.insuffDetails.second_insuff_reopened_date || '',
+                            third_insufficiency_marks: cmtData.third_insufficiency_marks || prevFormData.updated_json.insuffDetails.third_insufficiency_marks || '',
                             third_insuff_date: (cmtData.third_insuff_date && !isNaN(new Date(cmtData.third_insuff_date).getTime()))
                                 ? new Date(cmtData.third_insuff_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.third_insuff_date,
+                                : prevFormData.updated_json.insuffDetails.third_insuff_date || '',
                             third_insuff_reopened_date: (cmtData.third_insuff_reopened_date && !isNaN(new Date(cmtData.third_insuff_reopened_date).getTime()))
                                 ? new Date(cmtData.third_insuff_reopened_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.third_insuff_reopened_date,
-                            overall_status: cmtData.overall_status || prevFormData.updated_json.insuffDetails.overall_status,
+                                : prevFormData.updated_json.insuffDetails.third_insuff_reopened_date || '',
+                            overall_status: cmtData.overall_status || prevFormData.updated_json.insuffDetails.overall_status || '',
                             report_date: (cmtData.report_date && !isNaN(new Date(cmtData.report_date).getTime()))
                                 ? new Date(cmtData.report_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.report_date,
-                            report_status: cmtData.report_status || prevFormData.updated_json.insuffDetails.report_status,
-                            report_type: cmtData.report_type || prevFormData.updated_json.insuffDetails.report_type,
-                            final_verification_status: cmtData.final_verification_status || prevFormData.updated_json.insuffDetails.final_verification_status,
-                            is_verify: cmtData.is_verify || prevFormData.updated_json.insuffDetails.is_verify,
+                                : prevFormData.updated_json.insuffDetails.report_date || '',
+                            report_status: cmtData.report_status || prevFormData.updated_json.insuffDetails.report_status || '',
+                            report_type: cmtData.report_type || prevFormData.updated_json.insuffDetails.report_type || '',
+                            final_verification_status: cmtData.final_verification_status || prevFormData.updated_json.insuffDetails.final_verification_status || '',
+                            is_verify: cmtData.is_verify || prevFormData.updated_json.insuffDetails.is_verify || '',
                             deadline_date: (cmtData.deadline_date && !isNaN(new Date(cmtData.deadline_date).getTime()))
                                 ? new Date(cmtData.deadline_date).toLocaleDateString()
-                                : prevFormData.updated_json.insuffDetails.deadline_date,
-                            insuff_address: cmtData.insuff_address || prevFormData.updated_json.insuffDetails.insuff_address,
-                            basic_entry: cmtData.basic_entry || prevFormData.updated_json.insuffDetails.basic_entry,
-                            education: cmtData.education || prevFormData.updated_json.insuffDetails.education,
-                            case_upload: cmtData.case_upload || prevFormData.updated_json.insuffDetails.case_upload,
-                            emp_spoc: cmtData.emp_spoc || prevFormData.updated_json.insuffDetails.emp_spoc,
-                            report_generate_by: cmtData.report_generate_by || prevFormData.updated_json.insuffDetails.report_generate_by,
-                            qc_done_by: cmtData.qc_done_by || prevFormData.updated_json.insuffDetails.qc_done_by,
-                            delay_reason: cmtData.delay_reason || prevFormData.updated_json.insuffDetails.delay_reason,
+                                : prevFormData.updated_json.insuffDetails.deadline_date || '',
+                            insuff_address: cmtData.insuff_address || prevFormData.updated_json.insuffDetails.insuff_address || '',
+                            basic_entry: cmtData.basic_entry || prevFormData.updated_json.insuffDetails.basic_entry || '',
+                            education: cmtData.education || prevFormData.updated_json.insuffDetails.education || '',
+                            case_upload: cmtData.case_upload || prevFormData.updated_json.insuffDetails.case_upload || '',
+                            emp_spoc: cmtData.emp_spoc || prevFormData.updated_json.insuffDetails.emp_spoc || '',
+                            report_generate_by: cmtData.report_generate_by || prevFormData.updated_json.insuffDetails.report_generate_by || '',
+                            qc_done_by: cmtData.qc_done_by || prevFormData.updated_json.insuffDetails.qc_done_by || '',
+                            delay_reason: cmtData.delay_reason || prevFormData.updated_json.insuffDetails.delay_reason || '',
                         },
                     }
                 }));
@@ -226,45 +225,77 @@ const GenerateReport = () => {
     const fetchServicesJson = useCallback((servicesList) => {
         const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
         const token = localStorage.getItem('_token');
+
         if (!servicesList || servicesList.length === 0) {
-            return; // Exit the function if the string is empty or undefined
+            return; // Exit the function if the list is empty or undefined
         }
 
-        // If servicesList is a non-empty string, continue processing
+        // Convert servicesList to an array of service IDs
         const serviceIds = servicesList.split(",");
-        // Ensure this is a string
 
-        const fetchService = (serviceId) => {
-            const requestOptions = {
-                method: "GET",
-                redirect: "follow"
-            };
+        const fetchService = async (serviceId) => {
+            try {
+                const requestOptions = {
+                    method: "GET",
+                    redirect: "follow",
+                };
 
-            return fetch(`https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`, requestOptions)
-                .then((response) => {
-                    if (response.ok && response.status) {
-                        return response.json();  // Only parse JSON if response is successful and status is 200
+                const response1 = await fetch(
+                    `https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`,
+                    requestOptions
+                );
+
+                if (response1.ok) {
+                    const serviceData = await response1.json();
+
+                    // Fetch the application service if the first request is successful
+                    const applicationRequestOptions = {
+                        method: "GET",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+
+                    const response2 = await fetch(
+                        `https://screeningstar-new.onrender.com/client-master-tracker/application-service?service_id=${serviceId}&application_id=${applicationId}&admin_id=${adminId}&_token=${token}`,
+                        applicationRequestOptions
+                    );
+
+                    if (response2.ok) {
+                        const result2 = await response2.json();
+                        serviceData.annexureData = result2.annexureData;
+                    } else {
+                        throw new Error(`Application service API returned status: ${response2.status}`);
                     }
-                })
-                .catch((error) => console.error(`Error fetching service ${serviceId}:`, error));
+
+                    return serviceData; // Return the service data with annexureData
+                }
+                return null;
+            } catch (error) {
+                console.error(`Error fetching service ${serviceId}:`, error);
+                return null;
+            }
         };
 
-        Promise.all(serviceIds.map((id) => fetchService(id)))
+        // Use Promise.all to fetch all services concurrently
+        Promise.all(serviceIds.map(fetchService))
             .then((results) => {
-                const newToken = results.token || results._token || '';
+                const filteredResults = results.filter((item) => item != null);
+                setServicesDataInfo(filteredResults);
+
+                const newToken = filteredResults.find((result) => result?.token || result?._token);
                 if (newToken) {
-                    localStorage.setItem("_token", newToken);
+                    localStorage.setItem("_token", newToken.token || newToken._token);
                 }
-
-                const filteredResults = results.filter(item => item != null);
-                setServicesDataInfo(filteredResults || []);
-
-
-
             })
-            .catch((error) => console.error('Error fetching services:', error));
-    }, []);  // Adding servicesForm as a dependency
+            .catch((error) => {
+                console.error('Error fetching services:', error);
+            });
+    }, []);
 
+
+    console.log(`ServicesDataInfo - `, servicesDataInfo);
 
     useEffect(() => {
         fetchApplicationData();
@@ -275,9 +306,7 @@ const GenerateReport = () => {
 
 
     const handleChange = (e) => {
-        console.log(`HEllo`);
         const { name, value } = e.target;
-        console.log(`name - ${name} // value - ${value}`);
 
         setFormData((prevFormData) => {
             const updatedFormData = { ...prevFormData };
@@ -301,13 +330,7 @@ const GenerateReport = () => {
         });
     };
 
-    const handleInputChange = (e) => {
-        const { name, value } = e.target;
-        setFormValues((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-    };
+
 
     const uploadCustomerLogo = async (email_status) => {
         const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
@@ -364,29 +387,30 @@ const GenerateReport = () => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-    
+
         setLoading(true); // Start loading
-    
+
         const adminData = JSON.parse(localStorage.getItem("admin"));
         const token = localStorage.getItem("_token");
-    
+
         const submissionData = servicesDataInfo.map((serviceData, index) => {
             if (serviceData.status) {
                 const formJson = serviceData.reportFormJson?.json ? JSON.parse(serviceData.reportFormJson.json) : null;
-                if (!formJson) return null;
-    
+                if (!formJson) {
+                    return null;
+                }
                 const annexure = {};
-    
-                formJson.rows.forEach((row) => {
-                    row.inputs.forEach((input) => {
+
+                formJson.rows.forEach((row, rowIndex) => {
+                    row.inputs.forEach((input, inputIndex) => {
                         let fieldName = input.name;
-                        const fieldValue = formValues[fieldName] || '';
+                        const fieldValue = serviceData.annexureData[fieldName] || '';
                         const tableKey = formJson.db_table;
-    
+
                         if (fieldName.endsWith('[]')) {
                             fieldName = fieldName.slice(0, -2);
                         }
-    
+
                         if (fieldName.startsWith('annexure.')) {
                             const [, category, key] = fieldName.split('.');
                             if (!annexure[category]) annexure[category] = {};
@@ -397,22 +421,22 @@ const GenerateReport = () => {
                         }
                     });
                 });
-    
+
                 const category = formJson.db_table;
                 const status = selectedStatuses?.[index] || '';
                 if (annexure[category]) {
                     annexure[category].status = status;
                 }
-    
+
                 return { annexure };
             }
             return null;
         }).filter(service => service !== null);
-    
+
         setSubmittedData(submissionData);
-    
+
         const filteredSubmissionData = submissionData.filter(item => item !== null);
-    
+
         const raw = JSON.stringify({
             admin_id: adminData?.id,
             _token: token,
@@ -423,13 +447,13 @@ const GenerateReport = () => {
             annexure: filteredSubmissionData.reduce((acc, item) => ({ ...acc, ...item.annexure }), {}),
             send_mail: Object.keys(files).length === 0 ? 1 : 0,
         });
-    
+
         const requestOptions = {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: raw,
         };
-    
+
         fetch(`https://screeningstar-new.onrender.com/client-master-tracker/generate-report`, requestOptions)
             .then(response => {
                 if (!response.ok) {
@@ -443,12 +467,8 @@ const GenerateReport = () => {
                 if (newToken) {
                     localStorage.setItem("_token", newToken);
                 }
-    
+
                 uploadCustomerLogo(result.email_status);
-    
-                setFormData({
-                    updated_json: { /* Reset data here */ },
-                });
             })
             .catch(error => {
                 console.error('Error updating application data:', error);
@@ -457,11 +477,60 @@ const GenerateReport = () => {
                 setLoading(false);
             });
     };
-    
 
 
+    const handleInputChange = (e, index) => {
+        const { name, value } = e.target;
+        console.log(`\n--- handleInputChange Called ---`);
+        console.log(`Input name: ${name}`);
+        console.log(`Input value: ${value}`);
+        console.log(`Service index: ${index}`);
 
-    const renderInput = (input) => {
+        // Display the current formValues (if applicable)
+        console.log("Current formValues:", formValues);
+
+        // Log current servicesDataInfo before the update
+        console.log("Current servicesDataInfo before update:", servicesDataInfo);
+
+        // Update the correct field in the annexureData of the service at the given index
+        setServicesDataInfo((prev) => {
+            console.log("\n--- Inside setServicesDataInfo ---");
+            console.log("Previous servicesDataInfo:", prev);
+
+            const updatedServicesDataInfo = [...prev];
+
+            // Log the service data before updating annexureData
+            console.log(`Service data at index ${index} before update:`, updatedServicesDataInfo[index]);
+
+            updatedServicesDataInfo[index] = {
+                ...updatedServicesDataInfo[index],
+                annexureData: {
+                    ...updatedServicesDataInfo[index].annexureData,
+                    [name]: value, // Update the specific input field
+                },
+            };
+
+            // Log the updated annexureData
+            console.log(`Updated annexureData for service at index ${index}:`, updatedServicesDataInfo[index].annexureData);
+
+            // Log the entire updated service data
+            console.log(`Updated service data at index ${index}:`, updatedServicesDataInfo[index]);
+
+            return updatedServicesDataInfo;
+        });
+
+        // Log after the update is applied
+        console.log("Updated servicesDataInfo after update:", servicesDataInfo);
+    };
+
+
+    const renderInput = (index, dbTable, input) => {
+        // Find the value of the input in the annexure of the servicesDataInfo
+        console.log(`servicesDataInfo - `, servicesDataInfo);
+
+        const inputValue = servicesDataInfo[index]?.annexureData[input.name] || '';
+        console.log(inputValue);
+
         switch (input.type) {
             case "text":
             case "email":
@@ -470,8 +539,9 @@ const GenerateReport = () => {
                     <input
                         type={input.type}
                         name={input.name}
+                        value={inputValue}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onChange={handleInputChange}
+                        onChange={(e) => handleInputChange(e, index)} // Pass the index
                     />
                 );
             case "datepicker":
@@ -479,16 +549,18 @@ const GenerateReport = () => {
                     <input
                         type="date"
                         name={input.name}
+                        value={inputValue}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onChange={handleInputChange}
+                        onChange={(e) => handleInputChange(e, index)} // Pass the index
                     />
                 );
             case "dropdown":
                 return (
                     <select
                         name={input.name}
+                        value={inputValue}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onChange={handleInputChange}
+                        onChange={(e) => handleInputChange(e, index)} // Pass the index
                     >
                         {input.options.map((option) => (
                             <option key={option.value} value={option.value}>
@@ -505,8 +577,7 @@ const GenerateReport = () => {
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                         multiple={input.multiple}
                         required={input.required}
-                        onChange={(e) => handleFileChange(input.name, e)}
-
+                        onChange={(e) => handleFileChange(index, dbTable, input.name, e)} // Update this function if needed
                     />
                 );
             default:
@@ -514,15 +585,13 @@ const GenerateReport = () => {
                     <input
                         type="text"
                         name={input.name}
+                        value={inputValue}
                         className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onChange={handleInputChange}
+                        onChange={(e) => handleInputChange(e, index)} // Pass the index
                     />
                 );
         }
     };
-
-
-
 
 
     return (
@@ -861,7 +930,6 @@ const GenerateReport = () => {
                             {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
                                 if (serviceData.status) {
                                     const formJson = JSON.parse(serviceData.reportFormJson.json);
-                                    console.log('serviceData', serviceData)
 
                                     return (
                                         <div key={index} className="mb-6 flex justify-between mt-5">
@@ -909,7 +977,7 @@ const GenerateReport = () => {
 
                                 if (serviceData.status) {
                                     const formJson = JSON.parse(serviceData.reportFormJson.json);
-
+                                    const dbTable = formJson.db_table;
 
                                     return (
                                         <div key={index} className="mb-6 ">
@@ -931,12 +999,12 @@ const GenerateReport = () => {
                                                             {row.inputs.length === 1 ? (
                                                                 // If there's only one input, span all columns except the first one (label)
                                                                 <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
-                                                                    {renderInput(row.inputs[0])}
+                                                                    {renderInput(index, dbTable, row.inputs[0])}
                                                                 </td>
                                                             ) : (
                                                                 row.inputs.map((input, i) => (
                                                                     <td key={i} className="py-2 px-4 border border-gray-300">
-                                                                        {renderInput(input)}
+                                                                        {renderInput(index, dbTable, input)}
                                                                     </td>
                                                                 ))
                                                             )}
