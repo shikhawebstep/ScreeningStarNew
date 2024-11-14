@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Swal from 'sweetalert2'
 import axios from 'axios';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import 'swiper/css'; // Correct import path for CSS
+import { Navigation, Thumbs } from 'swiper'; // Import modules directly
 
 const GenerateReport = () => {
     const [submittedData, setSubmittedData] = useState(null); // State to hold submitted data
     const [files, setFiles] = useState([]);
-    const [annexureData, setAnnexureData] = useState([]);
     const [loading, setLoading] = useState(true);
     const [servicesForm, setServicesForm] = useState('');
     const [servicesDataInfo, setServicesDataInfo] = useState('');
@@ -13,7 +15,9 @@ const GenerateReport = () => {
     const [branchInfo, setBranchInfo] = useState([]);
     const [customerInfo, setCustomerInfo] = useState([]);
     const [referenceId, setReferenceId] = useState("");
-    const [formValues, setFormValues] = useState({}); // To store form values dynamically
+    const [thumbsSwiper, setThumbsSwiper] = useState(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [selectedImage, setSelectedImage] = useState(null);
 
     const [formData, setFormData] = useState({
         updated_json: {
@@ -74,6 +78,18 @@ const GenerateReport = () => {
             },
         },
     });
+
+
+    const openModal = (image) => {
+        setSelectedImage(`https://screeningstar-new.onrender.com/${image.trim()}`);
+        setModalOpen(true);
+    };
+
+    // Close the modal
+    const closeModal = () => {
+        setModalOpen(false);
+        setSelectedImage(null);
+    };
     const [selectedStatuses, setSelectedStatuses] = useState(
         new Array(servicesDataInfo.length).fill('')
     );
@@ -108,7 +124,6 @@ const GenerateReport = () => {
     useEffect(() => {
         if (applicationId) setReferenceId(applicationId);
     }, [applicationId]);
-
     const fetchApplicationData = useCallback(() => {
         const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
         const token = localStorage.getItem('_token');
@@ -131,8 +146,8 @@ const GenerateReport = () => {
                 fetchServicesJson(services);
                 setServicesForm(services);
                 setServicesData(result);
-                setBranchInfo(result.branchInfo)
-                setCustomerInfo(result.customerInfo)
+                setBranchInfo(result.branchInfo);
+                setCustomerInfo(result.customerInfo);
 
                 setFormData(prevFormData => ({
                     ...prevFormData,
@@ -217,10 +232,10 @@ const GenerateReport = () => {
                 setLoading(false); // Set loading to false after data is loaded
             })
             .catch((error) => {
-                console.error(error);
                 setLoading(false);
             });
     }, [applicationId, branchid]);
+
 
     const fetchServicesJson = useCallback((servicesList) => {
         const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
@@ -247,7 +262,10 @@ const GenerateReport = () => {
 
                 if (response1.ok) {
                     const serviceData = await response1.json();
-
+                    const newToken = response1.token || response1._token || '';
+                    if (newToken) {
+                        localStorage.setItem("_token", newToken);
+                    }
                     // Fetch the application service if the first request is successful
                     const applicationRequestOptions = {
                         method: "GET",
@@ -263,6 +281,10 @@ const GenerateReport = () => {
                     );
 
                     if (response2.ok) {
+                        const newToken = response2.token || response2._token || '';
+                        if (newToken) {
+                            localStorage.setItem("_token", newToken);
+                        }
                         const result2 = await response2.json();
                         serviceData.annexureData = result2.annexureData;
                     } else {
@@ -294,8 +316,6 @@ const GenerateReport = () => {
             });
     }, []);
 
-
-    console.log(`ServicesDataInfo - `, servicesDataInfo);
 
     useEffect(() => {
         fetchApplicationData();
@@ -337,7 +357,8 @@ const GenerateReport = () => {
         const storedToken = localStorage.getItem("_token");
 
         const fileCount = Object.keys(files).length;
-        for (const [key, value] of Object.entries(files)) {
+        for (const [rawKey, value] of Object.entries(files)) {
+            const key = rawKey.replace("[]", "");
             const customerLogoFormData = new FormData();
 
             customerLogoFormData.append('admin_id', admin_id);
@@ -348,17 +369,19 @@ const GenerateReport = () => {
             customerLogoFormData.append('customer_code', customerInfo.client_unique_id);
             customerLogoFormData.append('application_code', applicationId);
 
-
             // Check if selectedFiles is not empty
             if (value.selectedFiles.length > 0) {
                 for (const file of value.selectedFiles) {
                     // Ensure file is a valid File object
                     if (file instanceof File) {
                         customerLogoFormData.append('images', file); // Append each valid file
-                    } else {
-                        console.error('Invalid file object:', file);
                     }
                 }
+
+                // If needed, ensure the file name is sanitized (if required)
+                value.fileName = value.fileName.replace(/\[\]$/, ''); // Remove '[]' from the file name if present
+
+                // Append the sanitized file name to FormData
                 customerLogoFormData.append('db_column', value.fileName);
                 customerLogoFormData.append('db_table', key);
             }
@@ -368,7 +391,7 @@ const GenerateReport = () => {
             }
 
             try {
-                await axios.post(
+                const response = await axios.post(
                     `https://screeningstar-new.onrender.com/client-master-tracker/upload`,
                     customerLogoFormData,
                     {
@@ -377,10 +400,22 @@ const GenerateReport = () => {
                         },
                     }
                 );
+
+                // Set new token if available in the response
+                const newToken = response?.data?.filteredResults?.find(
+                    (result) => result?.token || result?._token
+                );
+                if (newToken) {
+                    localStorage.setItem("_token", newToken.token || newToken._token);
+                }
+
             } catch (err) {
+                // Handle error
+                console.error(err);
             }
         }
     };
+
 
 
 
@@ -435,8 +470,16 @@ const GenerateReport = () => {
 
         setSubmittedData(submissionData);
 
-        const filteredSubmissionData = submissionData.filter(item => item !== null);
-
+        const rawFilteredSubmissionData = submissionData.filter(item => item !== null);
+        const filteredSubmissionData = rawFilteredSubmissionData.reduce((acc, item) => ({ ...acc, ...item.annexure }), {});
+        Object.keys(filteredSubmissionData).forEach(key => {
+            const data = filteredSubmissionData[key];
+            Object.keys(data).forEach(subKey => {
+                if (subKey.startsWith("Annexure")) {
+                    delete data[subKey];
+                }
+            });
+        });
         const raw = JSON.stringify({
             admin_id: adminData?.id,
             _token: token,
@@ -444,7 +487,7 @@ const GenerateReport = () => {
             customer_id: branchInfo.customer_id,
             application_id: applicationId,
             ...formData,
-            annexure: filteredSubmissionData.reduce((acc, item) => ({ ...acc, ...item.annexure }), {}),
+            annexure: filteredSubmissionData,
             send_mail: Object.keys(files).length === 0 ? 1 : 0,
         });
 
@@ -481,55 +524,30 @@ const GenerateReport = () => {
 
     const handleInputChange = (e, index) => {
         const { name, value } = e.target;
-        console.log(`\n--- handleInputChange Called ---`);
-        console.log(`Input name: ${name}`);
-        console.log(`Input value: ${value}`);
-        console.log(`Service index: ${index}`);
 
-        // Display the current formValues (if applicable)
-        console.log("Current formValues:", formValues);
-
-        // Log current servicesDataInfo before the update
-        console.log("Current servicesDataInfo before update:", servicesDataInfo);
-
-        // Update the correct field in the annexureData of the service at the given index
         setServicesDataInfo((prev) => {
-            console.log("\n--- Inside setServicesDataInfo ---");
-            console.log("Previous servicesDataInfo:", prev);
-
             const updatedServicesDataInfo = [...prev];
-
-            // Log the service data before updating annexureData
-            console.log(`Service data at index ${index} before update:`, updatedServicesDataInfo[index]);
 
             updatedServicesDataInfo[index] = {
                 ...updatedServicesDataInfo[index],
                 annexureData: {
                     ...updatedServicesDataInfo[index].annexureData,
-                    [name]: value, // Update the specific input field
+                    [name]: value,
                 },
             };
-
-            // Log the updated annexureData
-            console.log(`Updated annexureData for service at index ${index}:`, updatedServicesDataInfo[index].annexureData);
-
-            // Log the entire updated service data
-            console.log(`Updated service data at index ${index}:`, updatedServicesDataInfo[index]);
 
             return updatedServicesDataInfo;
         });
 
-        // Log after the update is applied
-        console.log("Updated servicesDataInfo after update:", servicesDataInfo);
+
     };
 
 
-    const renderInput = (index, dbTable, input) => {
-        // Find the value of the input in the annexure of the servicesDataInfo
-        console.log(`servicesDataInfo - `, servicesDataInfo);
+    const renderInput = (index, dbTable, input, annexureImagesSplitArr) => {
+
 
         const inputValue = servicesDataInfo[index]?.annexureData[input.name] || '';
-        console.log(inputValue);
+
 
         switch (input.type) {
             case "text":
@@ -571,14 +589,38 @@ const GenerateReport = () => {
                 );
             case "file":
                 return (
-                    <input
-                        type="file"
-                        name={input.name}
-                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        multiple={input.multiple}
-                        required={input.required}
-                        onChange={(e) => handleFileChange(index, dbTable, input.name, e)} // Update this function if needed
-                    />
+                    <>
+                        <input
+                            type="file"
+                            name={input.name}
+                            className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            multiple={input.multiple}
+                            required={input.required}
+                            onChange={(e) => handleFileChange(index, dbTable, input.name, e)} // Update this function if needed
+                        />
+                        {annexureImagesSplitArr.length > 0 && (
+                            <Swiper
+                                onSwiper={setThumbsSwiper}
+                                spaceBetween={10}
+                                slidesPerView={4}
+                                freeMode
+                                watchSlidesProgress
+                                modules={[Thumbs]}
+                                className="thumbsSwiper"
+                            >
+                                {annexureImagesSplitArr.map((image, index) => (
+                                    <SwiperSlide key={index}>
+                                        <img
+                                            src={`https://screeningstar-new.onrender.com/${image.trim()}`}
+                                            alt={`Thumbnail ${index + 1}`}
+                                            className="cursor-pointer"
+                                            onClick={() => openModal(image)}
+                                        />
+                                    </SwiperSlide>
+                                ))}
+                            </Swiper>
+                        )}
+                    </>
                 );
             default:
                 return (
@@ -930,7 +972,18 @@ const GenerateReport = () => {
                             {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
                                 if (serviceData.status) {
                                     const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                    const dbTableHeading = formJson.heading;
+                                    const dbTable = formJson.db_table;
+                                    const serviceStatus = serviceData.annexureData["status"];
 
+                                    // Determine the preselected status
+                                    let preselectedStatus;
+                                    if (selectedStatuses[index]) {
+                                        preselectedStatus = selectedStatuses[index];
+                                    } else {
+                                        preselectedStatus = serviceStatus;
+                                        handleSelectChange(index, serviceStatus);
+                                    }
                                     return (
                                         <div key={index} className="mb-6 flex justify-between mt-5">
                                             {formJson.heading && (
@@ -938,13 +991,11 @@ const GenerateReport = () => {
                                                     <span>{formJson.heading}</span>
                                                     <select
                                                         className="border p-2 w-7/12 rounded-md"
-                                                        value={selectedStatuses[index]}
+                                                        value={preselectedStatus}  // Use the preselected status here
                                                         onChange={(e) => handleSelectChange(index, e.target.value)}
                                                         required
                                                     >
-                                                        <option disabled value="">
-                                                            --Select status--
-                                                        </option>
+                                                        <option value="">--Select status--</option>
                                                         <option value="nil">NIL</option>
                                                         <option value="initiated">INITIATED</option>
                                                         <option value="hold">HOLD</option>
@@ -968,56 +1019,119 @@ const GenerateReport = () => {
                                     );
                                 }
                             })}
+
+
                         </div>
 
 
 
                         <div className="container mx-auto mt-5 px-8">
                             {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
-
                                 if (serviceData.status) {
                                     const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                    const dbTableHeading = formJson.heading;
                                     const dbTable = formJson.db_table;
+                                    const annexureData = serviceData.annexureData;
+
+                                    // Use find to get the key instead of findIndex
+                                    const annexureImagesKey = Object.keys(annexureData).find(key =>
+                                        key.toLowerCase().startsWith('annexure') &&
+                                        !key.includes('[') &&
+                                        !key.includes(']')
+                                    );
+
+                                    const annexureImagesStr = annexureData[annexureImagesKey];
+                                    // Split the value by commas
+                                    let annexureImagesSplitArr;
+                                    if (annexureImagesStr) {
+                                        annexureImagesSplitArr = annexureImagesStr.split(',');
+                                    } else {
+                                        annexureImagesSplitArr = [];
+                                    }
+
+                                  
 
                                     return (
                                         <div key={index} className="mb-6 ">
-                                            {formJson.heading && (
-                                                <h3 className="text-center text-2xl font-semibold mb-4">{formJson.heading}</h3>
-                                            )}
-                                            <table className="w-full table-auto border-collapse border border-gray-300">
-                                                <thead>
-                                                    <tr className="bg-gray-100">
-                                                        {formJson.headers.map((header, idx) => (
-                                                            <th key={idx} className="py-2 px-4 border border-gray-300 text-left">{header}</th>
-                                                        ))}
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {formJson.rows.map((row, idx) => (
-                                                        <tr key={idx} className="odd:bg-gray-50">
-                                                            <td className="py-2 px-4 border border-gray-300">{row.label}</td>
-                                                            {row.inputs.length === 1 ? (
-                                                                // If there's only one input, span all columns except the first one (label)
-                                                                <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
-                                                                    {renderInput(index, dbTable, row.inputs[0])}
-                                                                </td>
-                                                            ) : (
-                                                                row.inputs.map((input, i) => (
-                                                                    <td key={i} className="py-2 px-4 border border-gray-300">
-                                                                        {renderInput(index, dbTable, input)}
-                                                                    </td>
-                                                                ))
-                                                            )}
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
 
-                                            </table>
+                                            {/* Only render form if the selected status is not "nil" */}
+                                            {selectedStatuses[index] !== "nil" && (
+
+                                                <>
+                                                    {dbTableHeading && (
+                                                        <h3 className="text-center text-2xl font-semibold mb-4">{dbTableHeading}</h3>
+                                                    )}
+                                                    <table className="w-full table-auto border-collapse border border-gray-300">
+                                                        <thead>
+                                                            <tr className="bg-gray-100">
+                                                                {formJson.headers.map((header, idx) => (
+                                                                    <th key={idx} className="py-2 px-4 border border-gray-300 text-left">{header}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {formJson.rows.map((row, idx) => (
+                                                                <tr key={idx} className="odd:bg-gray-50">
+                                                                    <td className="py-2 px-4 border border-gray-300">{row.label}</td>
+                                                                    {row.inputs.length === 1 ? (
+                                                                        // If there's only one input, span all columns except the first one (label)
+                                                                        <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
+                                                                            {renderInput(index, dbTable, row.inputs[0], annexureImagesSplitArr)}
+                                                                        </td>
+                                                                    ) : (
+                                                                        row.inputs.map((input, i) => (
+                                                                            <td key={i} className="py-2 px-4 border border-gray-300">
+                                                                                {renderInput(index, dbTable, input, annexureImagesSplitArr)}
+                                                                            </td>
+                                                                        ))
+                                                                    )}
+                                                                </tr>
+
+
+                                                            ))}
+                                                        </tbody>
+                                                    </table>
+
+
+                                                </>
+                                            )}
                                         </div>
                                     );
                                 }
                                 return null; // Ensure something is returned if `serviceData.status` is false
                             })}
+                        </div>
+                        <div>
+                            {/* Main Swiper for images */}
+
+
+                            {/* Thumbnail Swiper */}
+
+
+                            {/* Modal to show the selected image */}
+                            {modalOpen && (
+                                <div
+                                    className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+                                    onClick={closeModal} // Close modal when clicked outside
+                                >
+                                    <div
+                                        className="relative max-w-full max-h-full p-4"
+                                        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
+                                    >
+                                        <img
+                                            src={selectedImage}
+                                            alt="Selected"
+                                            className="max-w-full max-h-full object-contain"
+                                        />
+                                        <button
+                                            className="absolute top-2 right-2 bg-white text-black p-2 rounded-full shadow-md hover:bg-gray-300"
+                                            onClick={closeModal} // Close the modal on click
+                                        >
+                                            Close
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         <div className="form-group border rounded-md p-3">
