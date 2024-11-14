@@ -8,6 +8,9 @@ const AdminChekin = () => {
     const location = useLocation();
     const [data, setData] = useState([]);
     const [formData, setFormData] = useState([]);
+    const [cmtData, setCmtData] = useState([]);
+    const [branchInfo, setBranchInfo] = useState([]);
+    const [customerInfo, setCustomerInfo] = useState([]);
     const [reportData, setReportData] = useState({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -18,30 +21,31 @@ const AdminChekin = () => {
     const branchId = queryParams.get('branchId');
     const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
     const token = localStorage.getItem('_token');
-    console.log(`Fetching data for clientId: ${clientId}, branchId: ${branchId}`);
 
     // Fetch data from the main API
     const fetchData = useCallback(() => {
-        if(!branchId || !adminId || !token ){
+        if (!branchId || !adminId || !token) {
             return;
         }
         const requestOptions = {
             method: "GET",
             redirect: "follow"
         };
-    
+
         fetch(`https://screeningstar-new.onrender.com/client-master-tracker/applications-by-branch?branch_id=${branchId}&admin_id=${adminId}&_token=${token}`, requestOptions)
             .then((response) => response.json())
             .then((result) => {
-                setData(result.customers);
+                // Check if customers data exists, otherwise set to empty array
+                setData(result.customers || []);
+
             })
             .catch((error) => console.error(error));
     }, [branchId, adminId, token, setData]);
-    
+
 
     const extractedVerificationStatuses = Object.values(reportData).map(item => item.parsedFormData.formData.verificationStatus);
-    console.log('dayaaaa', extractedVerificationStatuses)
-    const generatePDF = async (applicationId) => {
+
+    const generatePDF = async () => {
         const doc = new jsPDF();
         const pageWidth = doc.internal.pageSize.getWidth();
         let yPosition = 10;
@@ -51,20 +55,15 @@ const AdminChekin = () => {
             redirect: "follow"
         };
 
-        try {
-            const response = await fetch(`https://screeningstar.onrender.com/Screeningstar/generatereport/${applicationId}`, requestOptions);
-            if (!response.ok) {
-                throw new Error("Network response was not ok " + response.statusText);
-            }
-            const apiData = await response.json();
+      
+        
             const sideMargin = 10;
-            const formJsonData = JSON.parse(apiData.data.formjson);
-            const formDataArray = formJsonData.formDataArray;
-            const formData = formJsonData.formData;
+          
+            // const formData = data.formData;
 
             // Dynamic data for title and report details
             const mainTitle = "BACKGROUND VERIFICATION REPORT";
-            const applicantName = formJsonData.fullName || "Applicant";
+            const applicantName = data.name || "Applicant";
             const logoImg = "http://localhost:3000/demo/screening/static/media/admin-logo.705fd0ed553f4768abb4.png?w=771&ssl=1";
             const imgWidth = 60;
             const imgHeight = 20;
@@ -80,9 +79,9 @@ const AdminChekin = () => {
             const imgBoxX = pageWidth - 40;
             doc.setFont("helvetica", "bold");
             doc.setFontSize(10);
-            doc.text(formJsonData.organizationName, imgBoxX + 15, 20, { align: 'center' });
+            doc.text(data.name, imgBoxX + 15, 20, { align: 'center' });
             doc.rect(imgBoxX, 23, 30, 23);
-            doc.text(applicantName, imgBoxX + 15, 50, { align: 'center' });
+            doc.text(data.name, imgBoxX + 15, 50, { align: 'center' });
 
             doc.setLineWidth(1);
             doc.line(10, 55, pageWidth - 10, 55);
@@ -98,11 +97,11 @@ const AdminChekin = () => {
             doc.text(mainTitle, pageWidth / 2, 66, { align: 'center' });
 
             const headerTableData = [
-                ["SCREENINGSTAR REF ID", apiData.data.application_id, "DATE OF BIRTH", formData.dateOfBirth || "N/A"],
-                ["EMPLOYEE ID", formJsonData.employeeId || "N/A", "INSUFF CLEARED", formData.insuffClearedDate || "N/A"],
-                ["VERIFICATION INITIATED", formData.verificationInitiated || "N/A", "FINAL REPORT DATE", formData.reportDate || "N/A"],
-                ["VERIFICATION PURPOSE", formData.verificationPurpose || "Employment", "VERIFICATION STATUS", formData.verificationStatus || "N/A"],
-                ["REPORT TYPE", formData.reportType || "Employment", "REPORT STATUS", formData.reportStatus || "N/A"]
+                ["SCREENINGSTAR REF ID", data.application_id, "DATE OF BIRTH", data.dob || "N/A"],
+                ["EMPLOYEE ID", data.employee_id || "N/A", "INSUFF CLEARED", data.insuffClearedDate || "N/A"],
+                ["VERIFICATION INITIATED", formData.verificationInitiated || "N/A", "FINAL REPORT DATE", data.reportDate || "N/A"],
+                ["VERIFICATION PURPOSE", formData.verificationPurpose || "Employment", "VERIFICATION STATUS", data.verificationStatus || "N/A"],
+                ["REPORT TYPE", formData.reportType || "Employment", "REPORT STATUS", data.reportStatus || "N/A"]
             ];
 
             doc.autoTable({
@@ -154,7 +153,7 @@ const AdminChekin = () => {
                         { content: 'VERIFICATION STATUS', styles: { halign: 'center', cellWidth: 'wrap', minCellWidth: 10 } },
                     ]
                 ],
-                body: formDataArray.map(service => [
+                body: data.map(service => [
                     { content: service.serviceName, styles: { minCellHeight: 20, cellPadding: 5 } },
                     { content: service.infoVerifiedBy, styles: { minCellHeight: 20, cellPadding: 5 } },
                     { content: service.verifyDate, styles: { minCellHeight: 20, cellPadding: 5 } },
@@ -244,7 +243,7 @@ const AdminChekin = () => {
             yPosition = doc.autoTable.previous.finalY + 10;
 
 
-            formDataArray.forEach((service) => {
+            data.forEach((service) => {
                 let pageWidth = 210;
                 let rectWidth = 180;
                 let xPosition = (pageWidth - rectWidth) / 2;
@@ -267,7 +266,7 @@ const AdminChekin = () => {
 
                 // Group by fieldName and collect all corresponding values for 'Verified' column
                 let uniqueData = {};
-                formDataArray.forEach((service) => {
+                data.forEach((service) => {
                     let pageWidth = 210;
                     let rectWidth = 180;
                     let xPosition = (pageWidth - rectWidth) / 2;
@@ -392,9 +391,7 @@ const AdminChekin = () => {
 
 
             doc.save('SSCD.pdf');
-        } catch (error) {
-            console.error("Error generating PDF:", error);
-        }
+      
     };
 
 
@@ -446,11 +443,11 @@ const AdminChekin = () => {
         fetchData(); // Refresh the table data
     };
 
-    const handleUpload = (applicationId,branchid) => {
+    const handleUpload = (applicationId, branchid) => {
         navigate(`/admin-generate-report?applicationId=${applicationId}&branchid=${branchid}`);
     };
 
- 
+
 
     return (
         <div className="bg-[#c1dff2]">
@@ -493,72 +490,70 @@ const AdminChekin = () => {
                             </tr>
                         </thead>
                         <tbody>
-                            {data.map((item, index) => {
+                            {data.map((data, index) => {
                                
                                 return (
-                                    <tr key={item.id} className="text-center">
+                                    <tr key={data.id} className="text-center">
                                         <td className="border px-4 py-2">{index + 1}</td>
-                                        <td className="border px-4 py-2">{item.tat_days || 'NIL'}</td>
-                                        <td className="border px-4 py-2">{item.application_id || 'NIL'}</td>
-                                        <td className="border px-4 py-2">{item.location || 'NIL'}</td>
-                                        <td className="border px-4 py-2">{item.name || 'NIL'}</td>
-                                        <td className="border px-4 py-2">{item.employee_id || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{data.tat_days || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{data.application_id || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{data.location || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{data.name || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{data.employee_id || 'NIL'}</td>
                                         <td className="border px-4 py-2">
-                                            <img src={`https://screeningstar-new.onrender.com${item.photo}`} alt={item.name} className="w-10 h-10 rounded-full" />
+                                            <img src={`https://screeningstar-new.onrender.com${data.photo}`} alt={data.name} className="w-10 h-10 rounded-full" />
                                         </td>
-                                        <td className="border px-4 py-2">{item.client_spoc_name || 'NIL'}</td>
-                                        <td className="border px-4 py-2">{new Date(item.created_at).toLocaleDateString()}</td>
-                                        <td className="border px-4 py-2">{new Date(item.updated_at).toLocaleDateString()}</td>
+                                        <td className="border px-4 py-2">{data.client_spoc_name || 'NIL'}</td>
+                                        <td className="border px-4 py-2">{new Date(data.created_at).toLocaleDateString()}</td>
+                                        <td className="border px-4 py-2">{new Date(data.updated_at).toLocaleDateString()}</td>
                                         <td className="border px-4 py-2">
                                             <button
                                                 className="bg-white border border-[#073d88] text-[#073d88] px-4 py-2 rounded hover:bg-[#073d88] hover:text-white"
-                                                onClick={() => handleUpload(item.id,item.branch_id)}
+                                                onClick={() => handleUpload(data.id, data.branch_id)}
                                             >
                                                 Generate Report
                                             </button>
                                         </td>
 
-                                        {/* Displaying `additional_fee` for the first item in formDataArray or fallback to 'N/A' */}
+                                        {/* Displaying `additional_fee` for the first item in data or fallback to 'N/A' */}
                                         <td className="border px-4 py-2">
-
-
                                             <button
-                                                onClick={() => generatePDF(item.application_id)}
+                                                onClick={() => generatePDF(data.application_id)}
                                                 className="bg-white border border-green-500 text-green-500 px-4 py-2 rounded hover:bg-green-500 hover:text-white"
                                             >
                                                 Generate PDF
                                             </button>
-
                                         </td>
-                                        <td className="border px-4 py-2">{formData.overallStatus || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.reportType || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.reportDate ? new Date(formData.reportDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.firstLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.firstInsuffRaisedDate ? new Date(formData.firstInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.firstInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.secondLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.remarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.secondInsuffRaisedDate ? new Date(formData.secondInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.secondInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.thirdLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.thirdLevelRemarks || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.thirdInsuffRaisedDate ? new Date(formData.thirdInsuffRaisedDate).toLocaleDateString() : 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.thirdInsuffClearedDate || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.reasonForDelay || 'N/A'}</td>
+
+                                        {/* Accessing properties from cmtData */}
+                                        <td className="border px-4 py-2">{data.overall_status || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.report_type || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.report_date ? new Date(data.report_date).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.first_insufficiency_marks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.first_insuff_date ? new Date(data.first_insuff_date).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.first_insuff_reopened_date || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.second_insufficiency_marks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.second_insuff_date ? new Date(data.second_insuff_date).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.second_insuff_reopened_date || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.third_insufficiency_marks || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.third_insuff_date ? new Date(data.third_insuff_date).toLocaleDateString() : 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.third_insuff_reopened_date || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.delay_reason || 'N/A'}</td>
                                         <td className="border px-4 py-2">
                                             <button
-                                                onClick={() => handleUpload(item.application_id)}
+                                                onClick={() => handleUpload(data.application_id)}
                                                 className="bg-white border border-[#073d88] text-[#073d88] px-4 py-2 rounded hover:bg-[#073d88] hover:text-white"
                                             >
                                                 Upload
                                             </button>
                                         </td>
-                                        <td className="border px-4 py-2">{formData.reportGeneratedBy || 'N/A'}</td>
-                                        <td className="border px-4 py-2">{formData.qcDoneBy || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.report_generate_by || 'N/A'}</td>
+                                        <td className="border px-4 py-2">{data.qc_done_by || 'N/A'}</td>
                                     </tr>
                                 );
                             })}
                         </tbody>
+
 
 
                     </table>

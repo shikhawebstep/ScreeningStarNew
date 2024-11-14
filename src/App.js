@@ -2,6 +2,8 @@ import React from "react";
 import { BrowserRouter as Router, Route, Routes, useLocation } from "react-router-dom";
 import { SidebarProvider } from './Components/SidebarContext'; // Corrected named import
 import Submenu from './Components/Submenu.js';
+import BackgroundVerificationForm from "./Components/background-form.js"
+
 import AdminBar from "./Components/adminBar";
 import UserBar from "./Components/userBar.js";
 import AdminHeader from "./Components/adminHeader.js"
@@ -102,6 +104,7 @@ const Layout = () => {
             {!hideSidebarAndHeader && <Submenu />}
             <Routes>
 
+            <Route path="/background-form" element={<BackgroundVerificationForm />} />
 
               <Route path="/userLogin" element={<UserLogin />} />
               <Route path="/" element={<LoginCheck><Dashboard /></LoginCheck>} />

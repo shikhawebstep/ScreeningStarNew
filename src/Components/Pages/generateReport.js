@@ -123,7 +123,92 @@ const GenerateReport = () => {
     // Set referenceId only once when applicationId changes
     useEffect(() => {
         if (applicationId) setReferenceId(applicationId);
-    }, [applicationId]);
+    }, [applicationId]); // Only rerun when applicationId changes
+
+    const fetchServicesJson = useCallback((servicesList) => {
+        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
+        const token = localStorage.getItem('_token');
+
+        if (!servicesList || servicesList.length === 0) {
+            return; // Exit the function if the list is empty or undefined
+        }
+
+        // Convert servicesList to an array of service IDs
+        const serviceIds = servicesList.split(",");
+
+        const fetchService = async (serviceId) => {
+            try {
+                const requestOptions = {
+                    method: "GET",
+                    redirect: "follow",
+                };
+
+                const response1 = await fetch(
+                    `https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`,
+                    requestOptions
+                );
+
+                if (response1.ok) {
+                    const serviceData = await response1.json();
+                    const newToken = response1.token || response1._token || '';
+                    if (newToken) {
+                        localStorage.setItem("_token", newToken);
+                    }
+                    // Fetch the application service if the first request is successful
+                    const applicationRequestOptions = {
+                        method: "GET",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        redirect: "follow",
+                    };
+
+                    const response2 = await fetch(
+                        `https://screeningstar-new.onrender.com/client-master-tracker/application-service?service_id=${serviceId}&application_id=${applicationId}&admin_id=${adminId}&_token=${token}`,
+                        applicationRequestOptions
+                    );
+
+                    if (response2.ok) {
+                        const newToken = response2.token || response2._token || '';
+                        if (newToken) {
+                            localStorage.setItem("_token", newToken);
+                        }
+                        const result2 = await response2.json();
+                        serviceData.annexureData = result2.annexureData;
+                    } else {
+                        serviceData.annexureData = [];
+                    }
+
+                    return serviceData; // Return the service data with annexureData
+                }
+                return null;
+            } catch (error) {
+                console.error(`Error fetching service ${serviceId}:`, error);
+                return null;
+            }
+        };
+
+        // Use Promise.all to fetch all services concurrently
+        Promise.all(serviceIds.map(fetchService))
+            .then((results) => {
+                const filteredResults = results.filter((item) => item != null);
+                setServicesDataInfo(filteredResults);
+
+                const newToken = filteredResults.find((result) => result?.token || result?._token);
+                if (newToken) {
+                    localStorage.setItem("_token", newToken.token || newToken._token);
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching services:', error);
+            });
+    }, [applicationId, setServicesDataInfo]); // Add applicationId and setServicesDataInfo as dependencies
+
+
+    useEffect(() => {
+        fetchServicesJson();
+    }, [fetchServicesJson]);
+
     const fetchApplicationData = useCallback(() => {
         const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
         const token = localStorage.getItem('_token');
@@ -229,100 +314,18 @@ const GenerateReport = () => {
                         },
                     }
                 }));
-                setLoading(false); // Set loading to false after data is loaded
+                setLoading(false);
             })
             .catch((error) => {
                 setLoading(false);
             });
-    }, [applicationId, branchid]);
+    }, [applicationId, branchid, fetchServicesJson, setServicesForm, setServicesData, setBranchInfo, setCustomerInfo, setFormData, setLoading]);
 
-
-    const fetchServicesJson = useCallback((servicesList) => {
-        const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
-        const token = localStorage.getItem('_token');
-
-        if (!servicesList || servicesList.length === 0) {
-            return; // Exit the function if the list is empty or undefined
-        }
-
-        // Convert servicesList to an array of service IDs
-        const serviceIds = servicesList.split(",");
-
-        const fetchService = async (serviceId) => {
-            try {
-                const requestOptions = {
-                    method: "GET",
-                    redirect: "follow",
-                };
-
-                const response1 = await fetch(
-                    `https://screeningstar-new.onrender.com/client-master-tracker/report-form-json-by-service-id?service_id=${serviceId}&admin_id=${adminId}&_token=${token}`,
-                    requestOptions
-                );
-
-                if (response1.ok) {
-                    const serviceData = await response1.json();
-                    const newToken = response1.token || response1._token || '';
-                    if (newToken) {
-                        localStorage.setItem("_token", newToken);
-                    }
-                    // Fetch the application service if the first request is successful
-                    const applicationRequestOptions = {
-                        method: "GET",
-                        headers: {
-                            "Content-Type": "application/json",
-                        },
-                        redirect: "follow",
-                    };
-
-                    const response2 = await fetch(
-                        `https://screeningstar-new.onrender.com/client-master-tracker/application-service?service_id=${serviceId}&application_id=${applicationId}&admin_id=${adminId}&_token=${token}`,
-                        applicationRequestOptions
-                    );
-
-                    if (response2.ok) {
-                        const newToken = response2.token || response2._token || '';
-                        if (newToken) {
-                            localStorage.setItem("_token", newToken);
-                        }
-                        const result2 = await response2.json();
-                        serviceData.annexureData = result2.annexureData;
-                    } else {
-                        throw new Error(`Application service API returned status: ${response2.status}`);
-                    }
-
-                    return serviceData; // Return the service data with annexureData
-                }
-                return null;
-            } catch (error) {
-                console.error(`Error fetching service ${serviceId}:`, error);
-                return null;
-            }
-        };
-
-        // Use Promise.all to fetch all services concurrently
-        Promise.all(serviceIds.map(fetchService))
-            .then((results) => {
-                const filteredResults = results.filter((item) => item != null);
-                setServicesDataInfo(filteredResults);
-
-                const newToken = filteredResults.find((result) => result?.token || result?._token);
-                if (newToken) {
-                    localStorage.setItem("_token", newToken.token || newToken._token);
-                }
-            })
-            .catch((error) => {
-                console.error('Error fetching services:', error);
-            });
-    }, []);
 
 
     useEffect(() => {
         fetchApplicationData();
     }, [fetchApplicationData]);
-    useEffect(() => {
-        fetchServicesJson();
-    }, [fetchServicesJson]);
 
 
     const handleChange = (e) => {
@@ -420,9 +423,8 @@ const GenerateReport = () => {
 
 
 
-    const handleSubmit = (e) => {
+    const handleSubmit = useCallback((e) => {
         e.preventDefault();
-
         setLoading(true); // Start loading
 
         const adminData = JSON.parse(localStorage.getItem("admin"));
@@ -436,10 +438,13 @@ const GenerateReport = () => {
                 }
                 const annexure = {};
 
-                formJson.rows.forEach((row, rowIndex) => {
-                    row.inputs.forEach((input, inputIndex) => {
+                formJson.rows.forEach((row) => {
+                    row.inputs.forEach((input) => {
                         let fieldName = input.name;
-                        const fieldValue = serviceData.annexureData[fieldName] || '';
+                        const fieldValue = serviceData.annexureData && serviceData.annexureData.hasOwnProperty(fieldName)
+                            ? serviceData.annexureData[fieldName]
+                            : '';
+
                         const tableKey = formJson.db_table;
 
                         if (fieldName.endsWith('[]')) {
@@ -480,6 +485,7 @@ const GenerateReport = () => {
                 }
             });
         });
+
         const raw = JSON.stringify({
             admin_id: adminData?.id,
             _token: token,
@@ -519,10 +525,10 @@ const GenerateReport = () => {
             .finally(() => {
                 setLoading(false);
             });
-    };
+    }, [servicesDataInfo, branchid, branchInfo, applicationId, formData, selectedStatuses, files]);
 
 
-    const handleInputChange = (e, index) => {
+    const handleInputChange = useCallback((e, index) => {
         const { name, value } = e.target;
 
         setServicesDataInfo((prev) => {
@@ -532,22 +538,20 @@ const GenerateReport = () => {
                 ...updatedServicesDataInfo[index],
                 annexureData: {
                     ...updatedServicesDataInfo[index].annexureData,
-                    [name]: value,
+                    [name]: value || '',
                 },
             };
 
             return updatedServicesDataInfo;
         });
-
-
-    };
+    }, []);
 
 
     const renderInput = (index, dbTable, input, annexureImagesSplitArr) => {
-
-
-        const inputValue = servicesDataInfo[index]?.annexureData[input.name] || '';
-
+        let inputValue = '';
+        if (servicesDataInfo[index]?.annexureData?.hasOwnProperty(input.name)) {
+            inputValue = servicesDataInfo[index].annexureData[input.name] || '';
+        }
 
         switch (input.type) {
             case "text":
@@ -595,7 +599,6 @@ const GenerateReport = () => {
                             name={input.name}
                             className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                             multiple={input.multiple}
-                            required={input.required}
                             onChange={(e) => handleFileChange(index, dbTable, input.name, e)} // Update this function if needed
                         />
                         {annexureImagesSplitArr.length > 0 && (
@@ -967,147 +970,122 @@ const GenerateReport = () => {
                             </div>
                         </div>
 
-                        <div className="SelectedServices border p-5 rounded-md mx-12">
-                            <h1 className="text-center text-2xl">SELECTED SERVICES</h1>
-                            {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
-                                if (serviceData.status) {
-                                    const formJson = JSON.parse(serviceData.reportFormJson.json);
-                                    const dbTableHeading = formJson.heading;
-                                    const dbTable = formJson.db_table;
-                                    const serviceStatus = serviceData.annexureData["status"];
-
-                                    // Determine the preselected status
-                                    let preselectedStatus;
-                                    if (selectedStatuses[index]) {
-                                        preselectedStatus = selectedStatuses[index];
-                                    } else {
-                                        preselectedStatus = serviceStatus;
-                                        handleSelectChange(index, serviceStatus);
-                                    }
-                                    return (
-                                        <div key={index} className="mb-6 flex justify-between mt-5">
-                                            {formJson.heading && (
-                                                <>
-                                                    <span>{formJson.heading}</span>
-                                                    <select
-                                                        className="border p-2 w-7/12 rounded-md"
-                                                        value={preselectedStatus}  // Use the preselected status here
-                                                        onChange={(e) => handleSelectChange(index, e.target.value)}
-                                                        required
-                                                    >
-                                                        <option value="">--Select status--</option>
-                                                        <option value="nil">NIL</option>
-                                                        <option value="initiated">INITIATED</option>
-                                                        <option value="hold">HOLD</option>
-                                                        <option value="closure advice">CLOSURE ADVICE</option>
-                                                        <option value="wip">WIP</option>
-                                                        <option value="insuff">INSUFF</option>
-                                                        <option value="completed">COMPLETED</option>
-                                                        <option value="completed_green">COMPLETED GREEN</option>
-                                                        <option value="completed_orange">COMPLETED ORANGE</option>
-                                                        <option value="completed_red">COMPLETED RED</option>
-                                                        <option value="completed_yellow">COMPLETED YELLOW</option>
-                                                        <option value="completed_pink">COMPLETED PINK</option>
-                                                        <option value="stopcheck">STOPCHECK</option>
-                                                        <option value="active employment">ACTIVE EMPLOYMENT</option>
-                                                        <option value="not doable">NOT DOABLE</option>
-                                                        <option value="candidate denied">CANDIDATE DENIED</option>
-                                                    </select>
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                }
-                            })}
-
-
-                        </div>
-
-
-
-                        <div className="container mx-auto mt-5 px-8">
-                            {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
-                                if (serviceData.status) {
-                                    const formJson = JSON.parse(serviceData.reportFormJson.json);
-                                    const dbTableHeading = formJson.heading;
-                                    const dbTable = formJson.db_table;
-                                    const annexureData = serviceData.annexureData;
-
-                                    // Use find to get the key instead of findIndex
-                                    const annexureImagesKey = Object.keys(annexureData).find(key =>
-                                        key.toLowerCase().startsWith('annexure') &&
-                                        !key.includes('[') &&
-                                        !key.includes(']')
-                                    );
-
-                                    const annexureImagesStr = annexureData[annexureImagesKey];
-                                    // Split the value by commas
-                                    let annexureImagesSplitArr;
-                                    if (annexureImagesStr) {
-                                        annexureImagesSplitArr = annexureImagesStr.split(',');
-                                    } else {
-                                        annexureImagesSplitArr = [];
-                                    }
-
-                                  
-
-                                    return (
-                                        <div key={index} className="mb-6 ">
-
-                                            {/* Only render form if the selected status is not "nil" */}
-                                            {selectedStatuses[index] !== "nil" && (
-
-                                                <>
-                                                    {dbTableHeading && (
-                                                        <h3 className="text-center text-2xl font-semibold mb-4">{dbTableHeading}</h3>
-                                                    )}
-                                                    <table className="w-full table-auto border-collapse border border-gray-300">
-                                                        <thead>
-                                                            <tr className="bg-gray-100">
-                                                                {formJson.headers.map((header, idx) => (
-                                                                    <th key={idx} className="py-2 px-4 border border-gray-300 text-left">{header}</th>
-                                                                ))}
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {formJson.rows.map((row, idx) => (
-                                                                <tr key={idx} className="odd:bg-gray-50">
-                                                                    <td className="py-2 px-4 border border-gray-300">{row.label}</td>
-                                                                    {row.inputs.length === 1 ? (
-                                                                        // If there's only one input, span all columns except the first one (label)
-                                                                        <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
-                                                                            {renderInput(index, dbTable, row.inputs[0], annexureImagesSplitArr)}
-                                                                        </td>
-                                                                    ) : (
-                                                                        row.inputs.map((input, i) => (
-                                                                            <td key={i} className="py-2 px-4 border border-gray-300">
-                                                                                {renderInput(index, dbTable, input, annexureImagesSplitArr)}
-                                                                            </td>
-                                                                        ))
-                                                                    )}
-                                                                </tr>
-
-
-                                                            ))}
-                                                        </tbody>
-                                                    </table>
-
-
-                                                </>
-                                            )}
-                                        </div>
-                                    );
-                                }
-                                return null; // Ensure something is returned if `serviceData.status` is false
-                            })}
-                        </div>
                         <div>
-                            {/* Main Swiper for images */}
+                            <div className="SelectedServices border p-5 rounded-md mx-12">
+                                <h1 className="text-center text-2xl">SELECTED SERVICES</h1>
+                                {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
+                                    if (serviceData.status) {
+                                        const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                        const dbTableHeading = formJson.heading;
+                                        const dbTable = formJson.db_table;
+                                        let serviceStatus = serviceData?.annexureData?.status || '';
+                                        let preselectedStatus = selectedStatuses[index] || serviceStatus;
 
+                                        return (
+                                            <div key={index} className="mb-6 flex justify-between mt-5">
+                                                {formJson.heading && (
+                                                    <>
+                                                        <span>{formJson.heading}</span>
+                                                        <select
+                                                            className="border p-2 w-7/12 rounded-md"
+                                                            value={preselectedStatus}
+                                                            onChange={(e) => handleSelectChange(index, e.target.value)}
+                                                            required
+                                                        >
+                                                            <option value="">--Select status--</option>
+                                                            <option value="nil">NIL</option>
+                                                            <option value="initiated">INITIATED</option>
+                                                            <option value="hold">HOLD</option>
+                                                            <option value="closure advice">CLOSURE ADVICE</option>
+                                                            <option value="wip">WIP</option>
+                                                            <option value="insuff">INSUFF</option>
+                                                            <option value="completed">COMPLETED</option>
+                                                            <option value="completed_green">COMPLETED GREEN</option>
+                                                            <option value="completed_orange">COMPLETED ORANGE</option>
+                                                            <option value="completed_red">COMPLETED RED</option>
+                                                            <option value="completed_yellow">COMPLETED YELLOW</option>
+                                                            <option value="completed_pink">COMPLETED PINK</option>
+                                                            <option value="stopcheck">STOPCHECK</option>
+                                                            <option value="active employment">ACTIVE EMPLOYMENT</option>
+                                                            <option value="not doable">NOT DOABLE</option>
+                                                            <option value="candidate denied">CANDIDATE DENIED</option>
+                                                        </select>
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </div>
 
-                            {/* Thumbnail Swiper */}
+                            <div className="container mx-auto mt-5 px-8">
+                                {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
+                                    if (serviceData.status) {
+                                        const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                        const dbTableHeading = formJson.heading;
+                                        const dbTable = formJson.db_table;
+                                        let annexureData = serviceData?.annexureData || {};
+                                        let annexureImagesSplitArr = [];
 
+                                        if (annexureData) {
+                                            const annexureImagesKey = Object.keys(annexureData).find(key =>
+                                                key.toLowerCase().startsWith('annexure') &&
+                                                !key.includes('[') &&
+                                                !key.includes(']')
+                                            );
+                                            if (annexureImagesKey) {
+                                                const annexureImagesStr = annexureData[annexureImagesKey];
+                                                annexureImagesSplitArr = annexureImagesStr ? annexureImagesStr.split(',') : [];
+                                            }
+                                        }
 
+                                        return (
+                                            <div key={index} className="mb-6">
+                                                {/* Only render form if the selected status is not "nil" */}
+                                                {selectedStatuses[index] !== "nil" && (
+                                                    <>
+                                                        {dbTableHeading && (
+                                                            <h3 className="text-center text-2xl font-semibold mb-4">{dbTableHeading}</h3>
+                                                        )}
+                                                        <table className="w-full table-auto border-collapse border border-gray-300">
+                                                            <thead>
+                                                                <tr className="bg-gray-100">
+                                                                    {formJson.headers.map((header, idx) => (
+                                                                        <th key={idx} className="py-2 px-4 border border-gray-300 text-left">{header}</th>
+                                                                    ))}
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {formJson.rows.map((row, idx) => (
+                                                                    <tr key={idx} className="odd:bg-gray-50">
+                                                                        <td className="py-2 px-4 border border-gray-300">{row.label}</td>
+                                                                        {row.inputs.length === 1 ? (
+                                                                            // If there's only one input, span all columns except the first one (label)
+                                                                            <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
+                                                                                {renderInput(index, dbTable, row.inputs[0], annexureImagesSplitArr)}
+                                                                            </td>
+                                                                        ) : (
+                                                                            row.inputs.map((input, i) => (
+                                                                                <td key={i} className="py-2 px-4 border border-gray-300">
+                                                                                    {renderInput(index, dbTable, input, annexureImagesSplitArr)}
+                                                                                </td>
+                                                                            ))
+                                                                        )}
+                                                                    </tr>
+                                                                ))}
+                                                            </tbody>
+                                                        </table>
+                                                    </>
+                                                )}
+                                            </div>
+                                        );
+                                    }
+                                    return null;
+                                })}
+                            </div>
+
+                          
                             {/* Modal to show the selected image */}
                             {modalOpen && (
                                 <div
