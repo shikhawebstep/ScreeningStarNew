@@ -1,70 +1,106 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import Swal from 'sweetalert2'
+import axios from 'axios';
 
 const GenerateReport = () => {
     const [submittedData, setSubmittedData] = useState(null); // State to hold submitted data
+    const [files, setFiles] = useState([]);
 
     const [loading, setLoading] = useState(true);
     const [servicesForm, setServicesForm] = useState('');
-    const [servicesDataInfo, setServicesDataInfo] = useState([]);
+    const [servicesDataInfo, setServicesDataInfo] = useState('');
     const [servicesData, setServicesData] = useState([]);
+    const [branchInfo, setBranchInfo] = useState([]);
+    const [customerInfo, setCustomerInfo] = useState([]);
     const [referenceId, setReferenceId] = useState("");
     const [formValues, setFormValues] = useState({}); // To store form values dynamically
 
     const [formData, setFormData] = useState({
-        applicantName: '',
-        application_id: '',
-        contactNumber: '',
-        monthYear: '',
-        initiationDate: '',
-        clientOrganization: '',
-        verificationPurpose: '',
-        applicantEmployeeID: '',
-        clientCode: '',
-        contactNumber2: '',
-        fatherFullName: '',
-        dateOfBirth: '',
-        gender: '',
-        maritalStatus: '',
-        nationality: '',
-        insuffClearedDate: '',
-        full_address: '',
-        stay_from: '',
-        stay_to: '',
-        landmark: '',
-        pin_code: '',
-        state: '',
-        ca_full_address: '',
-        ca_landmark: '',
-        ca_residence_mobile_no: '',
-        ca_state: '',
-        firstLevelRemarks: '',
-        firstInsuffRaisedDate: '',
-        firstInsuffClearedDate: '',
-        secondLevelRemarks: '',
-        secondInsuffRaisedDate: '',
-        secondInsuffClearedDate: '',
-        thirdLevelRemarks: '',
-        thirdInsuffRaisedDate: '',
-        thirdInsuffClearedDate: '',
-        overallStatus: '',
-        reportDate: '',
-        reportStatus: '',
-        reportType: '',
-        reportGeneratedBy: '',
-        qcDoneBy: '',
-        verificationStatus: '',
-        verificationInitiated: '',
-        deadlineDate: '',
-        qualityTeamVerification: '',
-        remarks: '',
-        reasonForDelay: '',
+        updated_json: {
+            month_year: '',
+            initiation_date: '',
+            organization_name: '',
+            verification_purpose: '',
+            employee_id: '',
+            client_code: '',
+            applicant_name: '',
+            contact_number: '',
+            contact_number2: '',
+            father_name: '',
+            dob: '',
+            gender: '',
+            marital_status: '',
+            nationality: '',
+            insuff: '',
+            address: {
+                address: '',
+                landmark: '',
+                residence_mobile_number: '',
+                state: '',
+            },
+            permanent_address: {
+                permanent_address: '',
+                permanent_sender_name: '',
+                permanent_reciever_name: '',
+                permanent_landmark: '',
+                permanent_pin_code: '',
+                permanent_state: '',
+            },
+            insuffDetails: {
+                first_insufficiency_marks: '',
+                first_insuff_date: '',
+                first_insuff_reopened_date: '',
+                second_insufficiency_marks: '',
+                second_insuff_date: '',
+                second_insuff_reopened_date: '',
+                third_insufficiency_marks: '',
+                third_insuff_date: '',
+                third_insuff_reopened_date: '',
+                overall_status: '',
+                report_date: '',
+                report_status: '',
+                report_type: '',
+                final_verification_status: '',
+                is_verify: '',
+                deadline_date: '',
+                insuff_address: '',
+                basic_entry: '',
+                education: '',
+                case_upload: '',
+                emp_spoc: '',
+                report_generate_by: '',
+                qc_done_by: '',
+                delay_reason: '',
+            },
+        },
     });
+    const [selectedStatuses, setSelectedStatuses] = useState(
+        new Array(servicesDataInfo.length).fill('')
+    );
+    const handleFileChange = (fileName, e) => {
+
+        const selectedFiles = Array.from(e.target.files);
+
+        // Update the state with the new selected files
+        setFiles((prevFiles) => ({
+            ...prevFiles,
+            [fileName]: { selectedFiles, fileName },
+        }));
+    };
 
 
-    const [date, setDate] = useState('');
-    const [inputType, setInputType] = useState('text');
-    const handleFocus = () => setInputType('date');
-    const handleBlur = () => !date && setInputType('text');
+    // Handle status change for each service
+    const handleSelectChange = (index, value) => {
+        setSelectedStatuses(prevStatuses => {
+            const updatedStatuses = [...prevStatuses];
+            updatedStatuses[index] = value;
+            return updatedStatuses;
+        });
+    };
+    console.log('formData', formData)
+    const allCompleted = selectedStatuses.every(status =>
+        status && status.includes('completed')
+    );
 
     const applicationId = new URLSearchParams(window.location.search).get('applicationId');
     const branchid = new URLSearchParams(window.location.search).get('branchid');
@@ -90,64 +126,95 @@ const GenerateReport = () => {
                 if (newToken) {
                     localStorage.setItem("_token", newToken);
                 }
-                const application = result.application;
-                const formDataa = result.cmtData || [];
-                const services = application.services;
-                console.log(`services - `, services);
+                const applicationData = result.application;
+                const cmtData = result.CMTData || [];
+                const services = applicationData.services;
                 fetchServicesJson(services);
                 setServicesForm(services);
-                console.log(`ServicesForm - `, servicesForm);
                 setServicesData(result);
+                setBranchInfo(result.branchInfo)
+                setCustomerInfo(result.customerInfo)
 
-                setFormData({
-                    applicantName: formData.applicantName || application.name || '',
-                    application_id: formData.application_id || application.application_id || '',
-                    contactNumber: formData.contactNumber || application.contactNumber || '',
-                    monthYear: formData.monthYear || '',
-                    initiationDate: formData.initiationDate || application.created_at || '',
-                    clientOrganization: formData.clientOrganization || application.name || '',
-                    verificationPurpose: formData.verificationPurpose || formDataa.verificationPurpose || '',
-                    applicantEmployeeID: formData.applicantEmployeeID || application.employee_id || '',
-                    clientCode: formData.clientCode || '',
-                    contactNumber2: formData.contactNumber2 || formDataa.contactNumber2 || '',
-                    fatherFullName: formData.fatherFullName || formDataa.fatherFullName || '',
-                    dateOfBirth: formData.dateOfBirth || formDataa.dateOfBirth || '',
-                    gender: formData.gender || formDataa.gender || '',
-                    maritalStatus: formData.maritalStatus || formDataa.maritalStatus || '',
-                    nationality: formData.nationality || formDataa.nationality || '',
-                    insuffClearedDate: formData.insuffClearedDate || formDataa.insuffClearedDate || '',
-                    full_address: formData.full_address || formDataa.full_address || '',
-                    stay_from: formData.stay_from || formDataa.stay_from || '',
-                    stay_to: formData.stay_to || formDataa.stay_to || '',
-                    landmark: formData.landmark || formDataa.landmark || '',
-                    pin_code: formData.pin_code || formDataa.pin_code || '',
-                    state: formData.state || formDataa.state || '',
-                    ca_full_address: formData.ca_full_address || formDataa.ca_full_address || '',
-                    ca_landmark: formData.ca_landmark || formDataa.ca_landmark || '',
-                    ca_residence_mobile_no: formData.ca_residence_mobile_no || formDataa.ca_residence_mobile_no || '',
-                    ca_state: formData.ca_state || formDataa.ca_state || '',
-                    firstLevelRemarks: formData.firstLevelRemarks || formDataa.firstLevelRemarks || '',
-                    firstInsuffRaisedDate: formData.firstInsuffRaisedDate || formDataa.firstInsuffRaisedDate || '',
-                    firstInsuffClearedDate: formData.firstInsuffClearedDate || formDataa.firstInsuffClearedDate || '',
-                    secondLevelRemarks: formData.secondLevelRemarks || formDataa.secondLevelRemarks || '',
-                    secondInsuffRaisedDate: formData.secondInsuffRaisedDate || formDataa.secondInsuffRaisedDate || '',
-                    secondInsuffClearedDate: formData.secondInsuffClearedDate || formDataa.secondInsuffClearedDate || '',
-                    thirdLevelRemarks: formData.thirdLevelRemarks || formDataa.thirdLevelRemarks || '',
-                    thirdInsuffRaisedDate: formData.thirdInsuffRaisedDate || formDataa.thirdInsuffRaisedDate || '',
-                    thirdInsuffClearedDate: formData.thirdInsuffClearedDate || formDataa.thirdInsuffClearedDate || '',
-                    overallStatus: formData.overallStatus || formDataa.overallStatus || '',
-                    reportDate: formData.reportDate || formDataa.reportDate || '',
-                    verificationInitiated: formData.verificationInitiated || formDataa.verificationInitiated || '',
-                    deadlineDate: formData.deadlineDate || formDataa.deadlineDate || '',
-                    reportStatus: formData.reportStatus || formDataa.reportStatus || '',
-                    reportType: formData.reportType || formDataa.reportType || '',
-                    reportGeneratedBy: formData.reportGeneratedBy || formDataa.reportGeneratedBy || '',
-                    qcDoneBy: formData.qcDoneBy || formDataa.reportTyqcDoneBype || '',
-                    verificationStatus: formData.verificationStatus || formDataa.verificationStatus || '',
-                    qualityTeamVerification: formData.qualityTeamVerification || formDataa.qualityTeamVerification || '',
-                    remarks: formData.remarks || formDataa.remarks || '',
-                    reasonForDelay: formData.reasonForDelay || formDataa.reasonForDelay || '',
-                });
+                setFormData(prevFormData => ({
+                    ...prevFormData,
+                    updated_json: {
+                        month_year: cmtData.month_year || applicationData.month_year || prevFormData.updated_json.month_year,
+                        initiation_date: (cmtData.initiation_date && !isNaN(new Date(cmtData.initiation_date).getTime()))
+                            ? new Date(cmtData.initiation_date).toLocaleDateString()
+                            : prevFormData.updated_json.initiation_date,
+                        organization_name: applicationData.name || prevFormData.updated_json.organization_name,
+                        verification_purpose: cmtData.verification_purpose || prevFormData.updated_json.verification_purpose,
+                        employee_id: applicationData.employee_id || prevFormData.updated_json.employee_id,
+                        client_code: cmtData.client_code || prevFormData.updated_json.client_code,
+                        applicant_name: cmtData.applicant_name || prevFormData.updated_json.applicant_name,
+                        contact_number: cmtData.contact_number || prevFormData.updated_json.contact_number,
+                        contact_number2: cmtData.contact_number2 || prevFormData.updated_json.contact_number2,
+                        father_name: cmtData.father_name || prevFormData.updated_json.father_name,
+                        dob: (cmtData.dob && !isNaN(new Date(cmtData.dob).getTime()))
+                            ? new Date(cmtData.dob).toLocaleDateString()
+                            : prevFormData.updated_json.dob,
+                        gender: cmtData.gender || prevFormData.updated_json.gender,
+                        marital_status: cmtData.marital_status || prevFormData.updated_json.marital_status,
+                        nationality: cmtData.nationality || prevFormData.updated_json.nationality,
+                        insuff: cmtData.insuff || prevFormData.updated_json.insuff,
+                        address: {
+                            address: cmtData.address || prevFormData.updated_json.address.address,
+                            landmark: cmtData.landmark || prevFormData.updated_json.address.landmark,
+                            residence_mobile_number: cmtData.residence_mobile_number || prevFormData.updated_json.address.residence_mobile_number,
+                            state: cmtData.state || prevFormData.updated_json.address.state,
+                        },
+                        permanent_address: {
+                            permanent_address: cmtData.permanent_address || prevFormData.updated_json.permanent_address.permanent_address,
+                            permanent_sender_name: cmtData.permanent_sender_name || prevFormData.updated_json.permanent_address.permanent_sender_name,
+                            permanent_receiver_name: cmtData.permanent_receiver_name || prevFormData.updated_json.permanent_address.permanent_receiver_name,
+                            permanent_landmark: cmtData.permanent_landmark || prevFormData.updated_json.permanent_address.permanent_landmark,
+                            permanent_pin_code: cmtData.permanent_pin_code || prevFormData.updated_json.permanent_address.permanent_pin_code,
+                            permanent_state: cmtData.permanent_state || prevFormData.updated_json.permanent_address.permanent_state,
+                        },
+                        insuffDetails: {
+                            first_insufficiency_marks: cmtData.first_insufficiency_marks || prevFormData.updated_json.insuffDetails.first_insufficiency_marks,
+                            first_insuff_date: (cmtData.first_insuff_date && !isNaN(new Date(cmtData.first_insuff_date).getTime()))
+                                ? new Date(cmtData.first_insuff_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.first_insuff_date,
+                            first_insuff_reopened_date: (cmtData.first_insuff_reopened_date && !isNaN(new Date(cmtData.first_insuff_reopened_date).getTime()))
+                                ? new Date(cmtData.first_insuff_reopened_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.first_insuff_reopened_date,
+                            second_insufficiency_marks: cmtData.second_insufficiency_marks || prevFormData.updated_json.insuffDetails.second_insufficiency_marks,
+                            second_insuff_date: (cmtData.second_insuff_date && !isNaN(new Date(cmtData.second_insuff_date).getTime()))
+                                ? new Date(cmtData.second_insuff_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.second_insuff_date,
+                            second_insuff_reopened_date: (cmtData.second_insuff_reopened_date && !isNaN(new Date(cmtData.second_insuff_reopened_date).getTime()))
+                                ? new Date(cmtData.second_insuff_reopened_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.second_insuff_reopened_date,
+                            third_insufficiency_marks: cmtData.third_insufficiency_marks || prevFormData.updated_json.insuffDetails.third_insufficiency_marks,
+                            third_insuff_date: (cmtData.third_insuff_date && !isNaN(new Date(cmtData.third_insuff_date).getTime()))
+                                ? new Date(cmtData.third_insuff_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.third_insuff_date,
+                            third_insuff_reopened_date: (cmtData.third_insuff_reopened_date && !isNaN(new Date(cmtData.third_insuff_reopened_date).getTime()))
+                                ? new Date(cmtData.third_insuff_reopened_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.third_insuff_reopened_date,
+                            overall_status: cmtData.overall_status || prevFormData.updated_json.insuffDetails.overall_status,
+                            report_date: (cmtData.report_date && !isNaN(new Date(cmtData.report_date).getTime()))
+                                ? new Date(cmtData.report_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.report_date,
+                            report_status: cmtData.report_status || prevFormData.updated_json.insuffDetails.report_status,
+                            report_type: cmtData.report_type || prevFormData.updated_json.insuffDetails.report_type,
+                            final_verification_status: cmtData.final_verification_status || prevFormData.updated_json.insuffDetails.final_verification_status,
+                            is_verify: cmtData.is_verify || prevFormData.updated_json.insuffDetails.is_verify,
+                            deadline_date: (cmtData.deadline_date && !isNaN(new Date(cmtData.deadline_date).getTime()))
+                                ? new Date(cmtData.deadline_date).toLocaleDateString()
+                                : prevFormData.updated_json.insuffDetails.deadline_date,
+                            insuff_address: cmtData.insuff_address || prevFormData.updated_json.insuffDetails.insuff_address,
+                            basic_entry: cmtData.basic_entry || prevFormData.updated_json.insuffDetails.basic_entry,
+                            education: cmtData.education || prevFormData.updated_json.insuffDetails.education,
+                            case_upload: cmtData.case_upload || prevFormData.updated_json.insuffDetails.case_upload,
+                            emp_spoc: cmtData.emp_spoc || prevFormData.updated_json.insuffDetails.emp_spoc,
+                            report_generate_by: cmtData.report_generate_by || prevFormData.updated_json.insuffDetails.report_generate_by,
+                            qc_done_by: cmtData.qc_done_by || prevFormData.updated_json.insuffDetails.qc_done_by,
+                            delay_reason: cmtData.delay_reason || prevFormData.updated_json.insuffDetails.delay_reason,
+                        },
+                    }
+                }));
                 setLoading(false); // Set loading to false after data is loaded
             })
             .catch((error) => {
@@ -159,16 +226,13 @@ const GenerateReport = () => {
     const fetchServicesJson = useCallback((servicesList) => {
         const adminId = JSON.parse(localStorage.getItem("admin"))?.id;
         const token = localStorage.getItem('_token');
-        console.log(`servicesList - `, servicesList);
         if (!servicesList || servicesList.length === 0) {
-            console.log("No services available.");
             return; // Exit the function if the string is empty or undefined
         }
 
         // If servicesList is a non-empty string, continue processing
         const serviceIds = servicesList.split(",");
         // Ensure this is a string
-        console.log(`serviceIds - `, serviceIds);
 
         const fetchService = (serviceId) => {
             const requestOptions = {
@@ -191,13 +255,14 @@ const GenerateReport = () => {
                 if (newToken) {
                     localStorage.setItem("_token", newToken);
                 }
+
                 const filteredResults = results.filter(item => item != null);
-                console.log(`results - `, filteredResults); // Log all results at once
-                setServicesDataInfo( filteredResults || []);
+                setServicesDataInfo(filteredResults || []);
+
+
 
             })
             .catch((error) => console.error('Error fetching services:', error));
-        console.log(`ServicesDataInfo - `, servicesDataInfo);
     }, []);  // Adding servicesForm as a dependency
 
 
@@ -210,11 +275,30 @@ const GenerateReport = () => {
 
 
     const handleChange = (e) => {
+        console.log(`HEllo`);
         const { name, value } = e.target;
-        setFormData((prevData) => ({
-            ...prevData,
-            [name]: value
-        }));
+        console.log(`name - ${name} // value - ${value}`);
+
+        setFormData((prevFormData) => {
+            const updatedFormData = { ...prevFormData };
+
+            // Determine where to update based on the name
+            if (name.startsWith('updated_json.address.')) {
+                const addressField = name.replace('updated_json.address.', '');
+                updatedFormData.updated_json.address[addressField] = value;
+            } else if (name.startsWith('updated_json.permanent_address.')) {
+                const permanentField = name.replace('updated_json.permanent_address.', '');
+                updatedFormData.updated_json.permanent_address[permanentField] = value;
+            } else if (name.startsWith('updated_json.insuffDetails.')) {
+                const insuffField = name.replace('updated_json.insuffDetails.', '');
+                updatedFormData.updated_json.insuffDetails[insuffField] = value;
+            } else {
+                const topLevelField = name.replace('updated_json.', '');
+                updatedFormData.updated_json[topLevelField] = value;
+            }
+
+            return updatedFormData;
+        });
     };
 
     const handleInputChange = (e) => {
@@ -225,49 +309,218 @@ const GenerateReport = () => {
         }));
     };
 
+    const uploadCustomerLogo = async (email_status) => {
+        const admin_id = JSON.parse(localStorage.getItem("admin"))?.id;
+        const storedToken = localStorage.getItem("_token");
+
+        const fileCount = Object.keys(files).length;
+        for (const [key, value] of Object.entries(files)) {
+            const customerLogoFormData = new FormData();
+
+            customerLogoFormData.append('admin_id', admin_id);
+            customerLogoFormData.append('_token', storedToken);
+            customerLogoFormData.append('application_id', applicationId);
+            customerLogoFormData.append('email_status', email_status || 0);
+            customerLogoFormData.append('branch_id', branchid);
+            customerLogoFormData.append('customer_code', customerInfo.client_unique_id);
+            customerLogoFormData.append('application_code', applicationId);
+
+
+            // Check if selectedFiles is not empty
+            if (value.selectedFiles.length > 0) {
+                for (const file of value.selectedFiles) {
+                    // Ensure file is a valid File object
+                    if (file instanceof File) {
+                        customerLogoFormData.append('images', file); // Append each valid file
+                    } else {
+                        console.error('Invalid file object:', file);
+                    }
+                }
+                customerLogoFormData.append('db_column', value.fileName);
+                customerLogoFormData.append('db_table', key);
+            }
+
+            if (fileCount === Object.keys(files).indexOf(key) + 1) {
+                customerLogoFormData.append('send_mail', 1);
+            }
+
+            try {
+                await axios.post(
+                    `https://screeningstar-new.onrender.com/client-master-tracker/upload`,
+                    customerLogoFormData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                        },
+                    }
+                );
+            } catch (err) {
+            }
+        }
+    };
+
+
+
 
     const handleSubmit = (e) => {
         e.preventDefault();
-
-        const submissionData = servicesDataInfo.map((serviceData) => {
+    
+        setLoading(true); // Start loading
+    
+        const adminData = JSON.parse(localStorage.getItem("admin"));
+        const token = localStorage.getItem("_token");
+    
+        const submissionData = servicesDataInfo.map((serviceData, index) => {
             if (serviceData.status) {
-                const formJson = JSON.parse(serviceData.reportFormJson.json);
-                if (formJson) {
-                    const annexure = {}; // Initialize annexure for nested fields
-
-                    formJson.rows.forEach((row) => {
-                        row.inputs.forEach((input) => {
-                            const fieldName = input.name;
-                            const fieldValue = formValues[fieldName] || '';
-                            const tableKey = formJson.db_table;
-
-                            if (fieldName.startsWith('annexure.')) {
-                                // Handle annexure fields (e.g., annexure.court_verification.court_name)
-                                const [, category, key] = fieldName.split('.');
-                                if (!annexure[category]) {
-                                    annexure[category] = {}; // Create the annexure table if not exists
-                                }
-                                annexure[category][key] = fieldValue;
-                            } else {
-                                // For non-annexure fields, add directly under annexure[db_table]
-                                if (!annexure[tableKey]) {
-                                    annexure[tableKey] = {};
-                                }
-                                annexure[tableKey][fieldName] = fieldValue;
-                            }
-                        });
+                const formJson = serviceData.reportFormJson?.json ? JSON.parse(serviceData.reportFormJson.json) : null;
+                if (!formJson) return null;
+    
+                const annexure = {};
+    
+                formJson.rows.forEach((row) => {
+                    row.inputs.forEach((input) => {
+                        let fieldName = input.name;
+                        const fieldValue = formValues[fieldName] || '';
+                        const tableKey = formJson.db_table;
+    
+                        if (fieldName.endsWith('[]')) {
+                            fieldName = fieldName.slice(0, -2);
+                        }
+    
+                        if (fieldName.startsWith('annexure.')) {
+                            const [, category, key] = fieldName.split('.');
+                            if (!annexure[category]) annexure[category] = {};
+                            annexure[category][key] = fieldValue;
+                        } else {
+                            if (!annexure[tableKey]) annexure[tableKey] = {};
+                            annexure[tableKey][fieldName] = fieldValue;
+                        }
                     });
-
-                    return { annexure };
+                });
+    
+                const category = formJson.db_table;
+                const status = selectedStatuses?.[index] || '';
+                if (annexure[category]) {
+                    annexure[category].status = status;
                 }
-
+    
+                return { annexure };
             }
-        });
-
+            return null;
+        }).filter(service => service !== null);
+    
         setSubmittedData(submissionData);
-        const filteredData = submissionData.filter(item => item != null);
-        console.log('Submitted Data:', filteredData); // Log to console
+    
+        const filteredSubmissionData = submissionData.filter(item => item !== null);
+    
+        const raw = JSON.stringify({
+            admin_id: adminData?.id,
+            _token: token,
+            branch_id: branchid,
+            customer_id: branchInfo.customer_id,
+            application_id: applicationId,
+            ...formData,
+            annexure: filteredSubmissionData.reduce((acc, item) => ({ ...acc, ...item.annexure }), {}),
+            send_mail: Object.keys(files).length === 0 ? 1 : 0,
+        });
+    
+        const requestOptions = {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: raw,
+        };
+    
+        fetch(`https://screeningstar-new.onrender.com/client-master-tracker/generate-report`, requestOptions)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(result => {
+                Swal.fire('Success!', 'Application updated successfully.', 'success');
+                const newToken = result._token || result.token;
+                if (newToken) {
+                    localStorage.setItem("_token", newToken);
+                }
+    
+                uploadCustomerLogo(result.email_status);
+    
+                setFormData({
+                    updated_json: { /* Reset data here */ },
+                });
+            })
+            .catch(error => {
+                console.error('Error updating application data:', error);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
     };
+    
+
+
+
+    const renderInput = (input) => {
+        switch (input.type) {
+            case "text":
+            case "email":
+            case "tel":
+                return (
+                    <input
+                        type={input.type}
+                        name={input.name}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleInputChange}
+                    />
+                );
+            case "datepicker":
+                return (
+                    <input
+                        type="date"
+                        name={input.name}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleInputChange}
+                    />
+                );
+            case "dropdown":
+                return (
+                    <select
+                        name={input.name}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleInputChange}
+                    >
+                        {input.options.map((option) => (
+                            <option key={option.value} value={option.value}>
+                                {option.showText}
+                            </option>
+                        ))}
+                    </select>
+                );
+            case "file":
+                return (
+                    <input
+                        type="file"
+                        name={input.name}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        multiple={input.multiple}
+                        required={input.required}
+                        onChange={(e) => handleFileChange(input.name, e)}
+
+                    />
+                );
+            default:
+                return (
+                    <input
+                        type="text"
+                        name={input.name}
+                        className="w-full p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onChange={handleInputChange}
+                    />
+                );
+        }
+    };
+
 
 
 
@@ -293,804 +546,720 @@ const GenerateReport = () => {
                             <input type="hidden" name="apid" id="apid" value={referenceId} />
                         </div>
                         <div className=" form start space-y-4 py-[30px] px-[51px] bg-white rounded-md" id="client-spoc">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col ">
-                                    <label htmlFor="monthYear" className="mb-1 text-sm font-semibold">Month - Year*</label>
-                                    <input
-                                        type="text"
-                                        name="monthYear"
-                                        id="monthYear"
-                                        placeholder="Month - Year*"
-                                        value={formData.monthYear}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
+                            <div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="month_year">Month - Year*</label>
+                                        <input
+                                            type="text"
+                                            name="month_year"
+                                            id="month_year"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.month_year || ''}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
 
-                                    />
+                                    <div className="mb-4">
+                                        <label htmlFor="initiation_date">Initiation Date</label>
+                                        <input
+                                            type="date"
+                                            name="initiation_date"
+                                            id="initiation_date"
+                                            className="w-full border p-2 outline-none rounded-md mt-2"
+                                            value={formData.updated_json.initiation_date}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="flex flex-col">
-                                    <label htmlFor="initiationDate" className="mb-1 text-sm font-semibold">Inflation Date</label>
-                                    <input
-                                        type={inputType}
-                                        name="initiationDate"
-                                        id="initiationDate"
-                                        placeholder={inputType === 'text' ? 'Inflation Date' : ''}
-                                        value={formData.initiationDate}
-                                        onChange={handleChange}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
 
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="clientOrganization" className="mb-1 text-sm font-semibold">Name of the Client Organization</label>
-                                    <input
-                                        type="text"
-                                        name="clientOrganization"
-                                        id="clientOrganization"
-                                        value={formData.clientOrganization}
-                                        onChange={handleChange}
-                                        placeholder="Name of the Client Organization"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="organization_name">Name of the Client Organization</label>
+                                        <input
+                                            type="text"
+                                            name="organization_name"
+                                            id="organization_name"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.organization_name}
+                                            disabled={formData.updated_json.organization_name}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
 
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="verificationPurpose" className="mb-1 text-sm font-semibold">Verification Purpose*</label>
-                                    <input
-                                        type="text"
-                                        name="verificationPurpose"
-                                        id="verificationPurpose"
-                                        value={formData.verificationPurpose}
-                                        onChange={handleChange}
-                                        placeholder="Verification Purpose*"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
+                                    <div className="mb-4">
+                                        <label htmlFor="verification_purpose">Verification Purpose*</label>
+                                        <input
+                                            type="text"
+                                            name="verification_purpose"
+                                            id="verification_purpose"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.verification_purpose}
 
-                                    />
+                                            onChange={handleChange}
+                                        />
+                                    </div>
                                 </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="applicantEmployeeID" className="mb-1 text-sm font-semibold">Applicant Employee ID</label>
-                                    <input
-                                        type="text"
-                                        name="applicantEmployeeID"
-                                        id="applicantEmployeeID"
-                                        value={formData.applicantEmployeeID}
-                                        onChange={handleChange}
-                                        placeholder="Applicant Employee ID"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="clientCode" className="mb-1 text-sm font-semibold">Client Code</label>
-                                    <input
-                                        type="text"
-                                        name="clientCode"
-                                        id="clientCode"
-                                        value={formData.clientCode}
-                                        onChange={handleChange}
-                                        placeholder="Client Code"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
 
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="applicantName" className="mb-1 text-sm font-semibold">Name of the Applicant*</label>
-                                    <input
-                                        type="text"
-                                        name="applicantName"
-                                        id="applicantName"
-                                        value={formData.applicantName}
-                                        onChange={handleChange}
-                                        placeholder="Name of the Applicant*"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="employee_id">Applicant Employee ID</label>
+                                        <input
+                                            type="text"
+                                            name="employee_id"
+                                            id="employee_id"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.employee_id}
+                                            disabled={formData.updated_json.employee_id}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
 
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="contactNumber" className="mb-1 text-sm font-semibold">Contact Number</label>
-                                    <input
-                                        type="number"
-                                        name="contactNumber"
-                                        id="contactNumber"
-                                        value={formData.contactNumber}
-                                        onChange={handleChange}
-                                        placeholder="Contact Number"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                                <div className="flex flex-col">
-                                    <label htmlFor="contactNumber2" className="mb-1 text-sm font-semibold">Contact Number 2</label>
-                                    <input
-                                        type="number"
-                                        name="contactNumber2"
-                                        id="contactNumber2"
-                                        value={formData.contactNumber2}
-                                        onChange={handleChange}
-                                        placeholder="Contact Number 2"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="fatherFullName" className="mb-1 text-sm font-semibold">Father Full Name</label>
-                                    <input
-                                        type="text"
-                                        name="fatherFullName"
-                                        id="fatherFullName"
-                                        value={formData.fatherFullName}
-                                        onChange={handleChange}
-                                        placeholder="Father Full Name"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="dateOfBirth" className="mb-1 text-sm font-semibold">Date Of Birth</label>
-                                    <input
-                                        type={inputType}
-                                        name="dateOfBirth"
-                                        id="dateOfBirth"
-                                        placeholder={inputType === 'text' ? 'Date Of Birth' : ''}
-                                        value={formData.dateOfBirth}
-                                        onChange={handleChange}
-                                        onFocus={handleFocus}
-                                        onBlur={handleBlur}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="gender" className="mb-1 text-sm font-semibold">Gender</label>
-                                    <select
-                                        name="gender"
-                                        id="gender"
-                                        value={formData.gender}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb]  border-gray-300"
-                                    >
-                                        <option value="" disabled>Gender</option>
-                                        <option value="male">Male</option>
-                                        <option value="female">Female</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="maritalStatus" className="mb-1 text-sm font-semibold">Marital Status</label>
-                                    <select
-                                        name="maritalStatus"
-                                        id="maritalStatus"
-                                        value={formData.maritalStatus}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb]  border-gray-300"
-                                    >
-                                        <option value="" disabled>Marital Status</option>
-                                        <option value="single">Single</option>
-                                        <option value="married">Married</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="nationality" className="mb-1 text-sm font-semibold">Nationality</label>
-                                    <input
-                                        type="text"
-                                        name="nationality"
-                                        id="nationality"
-                                        value={formData.nationality}
-                                        onChange={handleChange}
-                                        placeholder="Nationality"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col">
-                                    <label htmlFor="insuffClearedDate" className="mb-1 text-sm font-semibold">Insuff Cleared Date / Re-Opened Date*</label>
-                                    <input
-                                        type="date"
-                                        name="insuffClearedDate"
-                                        id="insuffClearedDate"
-                                        value={formData.insuffClearedDate}
-                                        onChange={handleChange}
-                                        placeholder="Insuff Cleared Date / Re-Opened Date*"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
+                                    <div className="mb-4">
+                                        <label htmlFor="client_code">Client Code</label>
+                                        <input
+                                            type="text"
+                                            name="client_code"
+                                            id="client_code"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.client_code}
 
-                                    />
+                                            onChange={handleChange}
+                                        />
+                                    </div>
                                 </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="applicant_name">Name of the Applicant*</label>
+                                        <input
+                                            type="text"
+                                            name="applicant_name"
+                                            id="applicant_name"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.applicant_name}
+
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label htmlFor="contact_number">Contact Number</label>
+                                        <input
+                                            type="tel"
+                                            name="contact_number"
+                                            id="contact_number"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.contact_number}
+
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="contact_number2">Contact Number 2:</label>
+                                        <input
+                                            type="tel"
+                                            name="contact_number2"
+                                            id="contact_number2"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.contact_number2}
+
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label htmlFor="father_name">Father's Name:</label>
+                                        <input
+                                            type="text"
+                                            name="father_name"
+                                            id="father_name"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.father_name}
+
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="gender">Gender</label>
+                                        <select
+                                            name="gender"
+                                            id="gender"
+                                            className="border w-full rounded-md p-2 mt-2"
+                                            value={formData.updated_json.gender}
+
+                                            onChange={handleChange}
+                                        >
+                                            <option value="">Select Gender</option>
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="mb-4">
+                                        <label htmlFor="marital_status">Marital Status</label>
+                                        <select
+                                            name="marital_status"
+                                            id="marital_status"
+                                            className="border w-full rounded-md p-2 mt-2"
+                                            value={formData.updated_json.marital_status}
+
+                                            onChange={handleChange}
+                                        >
+                                            <option value="">Select Marital Status</option>
+                                            <option value="Single">Single</option>
+                                            <option value="Married">Married</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+
                             </div>
 
                             <div className='permanentaddress '>
                                 <div className='my-4'>permanent address</div>
-                                <div className="space-y-4 py-[30px]  border border-[#3e76a5] px-[51px] bg-white rounded-md" id="address-form"
-                                >
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex flex-col">
-                                            <label htmlFor="full_address" className="mb-1 text-sm font-semibold">Full Address*</label>
+                                <div className="form-group border p-3 rounded-md">
+                                    <div className="mb-4">
+                                        <label htmlFor="full_address">Full Address:</label>
+                                        <input
+                                            type="text"
+                                            name="updated_json.permanent_address.permanent_address"
+                                            id="full_address"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.permanent_address.permanent_address || ''}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+
+                                    <div className="form-group">
+                                        <h3 className="font-semibold text-xl mb-3">Period of Stay</h3>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="mb-4">
+                                                <label htmlFor="permanent_sender_name">From:</label>
+                                                <input
+                                                    type="text"
+                                                    name="updated_json.permanent_address.permanent_sender_name"
+                                                    id="permanent_sender_name"
+                                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                                    value={formData.updated_json.permanent_address.permanent_sender_name}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+
+                                            <div className="mb-4">
+                                                <label htmlFor="permanent_reciever_name">To:</label>
+                                                <input
+                                                    type="text"
+                                                    name="updated_json.permanent_address.permanent_reciever_name"
+                                                    id="permanent_reciever_name"
+                                                    className="w-full border p-2 outline-none rounded-md mt-2 capitalize"
+                                                    value={formData.updated_json.permanent_address.permanent_reciever_name}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className="mb-4">
+                                                <label htmlFor="permanent_landmark">Landmark:</label>
+                                                <input
+                                                    type="text"
+                                                    name="updated_json.permanent_address.permanent_landmark"
+                                                    id="permanent_landmark"
+                                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                                    value={formData.updated_json.permanent_address.permanent_landmark}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+
+                                            <div className="mb-4">
+                                                <label htmlFor="permanent_pin_code">Pin Code:</label>
+                                                <input
+                                                    type="text" // Keep as text to handle leading zeros
+                                                    name="updated_json.permanent_address.permanent_pin_code"
+                                                    id="permanent_pin_code"
+                                                    className="w-full border p-2 outline-none rounded-md mt-2 capitalize"
+                                                    value={formData.updated_json.permanent_address.permanent_pin_code}
+                                                    onChange={handleChange}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-4">
+                                            <label htmlFor="permanent_state">State:</label>
                                             <input
                                                 type="text"
-                                                name="full_address"
-                                                id="full_address"
-                                                value={formData.full_address}
+                                                name="updated_json.permanent_address.permanent_state"
+                                                id="permanent_state"
+                                                className="w-full border p-2 outline-none rounded-md mt-2 capitalize"
+                                                value={formData.updated_json.permanent_address.permanent_state}
                                                 onChange={handleChange}
-                                                placeholder="Full Address*"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-
                                             />
                                         </div>
                                     </div>
-
-                                    <h5 className="font-semibold text-lg">Period of Stay</h5>
-
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <div className="flex flex-col">
-                                            <label htmlFor="stay_from" className="mb-1 text-sm font-semibold">From:</label>
-                                            <input
-                                                type="text"
-                                                name="stay_from"
-                                                id="stay_from"
-                                                value={formData.stay_from}
-                                                onChange={handleChange}
-                                                placeholder="From"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                            />
-                                        </div>
-
-                                        <div className="flex flex-col">
-                                            <label htmlFor="stay_to" className="mb-1 text-sm font-semibold">To:</label>
-                                            <input
-                                                type="text"
-                                                name="stay_to"
-                                                id="stay_to"
-                                                value={formData.stay_to}
-                                                onChange={handleChange}
-                                                placeholder="To"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex flex-col">
-                                            <label htmlFor="landmark" className="mb-1 text-sm font-semibold">Landmark:</label>
-                                            <input
-                                                type="text"
-                                                name="landmark"
-                                                id="landmark"
-                                                value={formData.landmark}
-                                                onChange={handleChange}
-                                                placeholder="Landmark"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex flex-col">
-                                            <label htmlFor="pin_code" className="mb-1 text-sm font-semibold">Pin Code:</label>
-                                            <input
-                                                type="number"
-                                                name="pin_code"
-                                                id="pin_code"
-                                                value={formData.pin_code}
-                                                onChange={handleChange}
-                                                placeholder="Pin Code"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 gap-4">
-                                        <div className="flex flex-col">
-                                            <label htmlFor="state" className="mb-1 text-sm font-semibold">State:</label>
-                                            <input
-                                                type="text"
-                                                name="state"
-                                                id="state"
-                                                value={formData.state}
-                                                onChange={handleChange}
-                                                placeholder="State"
-                                                className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                            />
-                                        </div>
-                                    </div>
-
-
                                 </div>
                             </div>
                             <div className='currentaddress '>
                                 <div className='my-4'>Current address </div>
-                                <div class="addresses border border-[#3e76a5] p-5 mb-5 rounded-md">
-                                    <div class="grid grid-cols-1 gap-4">
-
-                                        <div class="flex flex-col">
-                                            <label for="ca_full_address" class="mb-1 text-sm font-semibold">Full Address</label>
-                                            <input
-                                                type="text"
-                                                class="w-full rounded-md mb-5 p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                                name="ca_full_address"
-                                                id="ca_full_address"
-                                                value={formData.ca_full_address}
-                                                onChange={handleChange}
-                                                placeholder="Full Address"
-                                            />
-                                        </div>
+                                <div className="form-group border rounded-md p-3">
+                                    <div className="mb-4">
+                                        <label htmlFor="full_address">Full Address:</label>
+                                        <input
+                                            type="text"
+                                            name="updated_json.address.address"
+                                            id="address"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.address.address}
+                                            onChange={handleChange}
+                                        />
                                     </div>
-
-                                    <div class="grid grid-cols-1 gap-4">
-
-                                        <div class="flex flex-col">
-                                            <label for="ca_landmark" class="mb-1 text-sm font-semibold">Landmark</label>
-                                            <input
-                                                type="text"
-                                                class="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                                name="ca_landmark"
-                                                id="ca_landmark"
-                                                value={formData.ca_landmark}
-                                                onChange={handleChange}
-                                                placeholder="Landmark"
-                                            />
-                                        </div>
+                                    <div className="mb-4">
+                                        <label htmlFor="Landmark">Landmark:</label>
+                                        <input
+                                            type="text"
+                                            name="updated_json.address.landmark"
+                                            id="landmark"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.address.landmark}
+                                            onChange={handleChange}
+                                        />
                                     </div>
-
-                                    <div class="grid grid-cols-1 gap-4">
-
-                                        <div class="flex flex-col">
-                                            <label for="ca_residence_mobile_no" class="mb-1 text-sm font-semibold">Residence Mobile No</label>
-                                            <input
-                                                type="number"
-                                                class="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                                name="ca_residence_mobile_no"
-                                                id="ca_residence_mobile_no"
-                                                value={formData.ca_residence_mobile_no}
-                                                onChange={handleChange}
-                                                placeholder="Residence Mobile No"
-                                            />
-                                        </div>
+                                    <div className="mb-4">
+                                        <label htmlFor="residence_mobile_number">Residence Mobile No:</label>
+                                        <input
+                                            type="text"
+                                            name="updated_json.address.residence_mobile_number"
+                                            id="residence_mobile_number"
+                                            className="border w-full rounded-md p-2 mt-2 capitalize"
+                                            value={formData.updated_json.address.residence_mobile_number}
+                                            onChange={handleChange}
+                                        />
                                     </div>
-
-                                    <div class="grid grid-cols-1 gap-4">
-
-                                        <div class="flex flex-col">
-                                            <label for="ca_state" class="mb-1 text-sm font-semibold">State</label>
-                                            <input
-                                                type="text"
-                                                class="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                                name="ca_state"
-                                                id="ca_state"
-                                                value={formData.ca_state}
-                                                onChange={handleChange}
-                                                placeholder="State"
-                                            />
-                                        </div>
+                                    <div className="mb-4">
+                                        <label htmlFor="state">State</label>
+                                        <input
+                                            type="text"
+                                            name="updated_json.address.state"
+                                            id="state"
+                                            className="w-full border p-2 outline-none rounded-md mt-2 capitalize"
+                                            value={formData.updated_json.address.state}
+                                            onChange={handleChange}
+                                        />
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className='SelectedServices'>
-                            <h1 className='text-center text-2xl'> SELECTED SERVICES </h1>
-                            {servicesData && Object.entries(servicesData).map(([key, service]) => (
-                                service?.formjson ? (
-                                    <div key={service.serviceId} class="servdesc flex flex-col mb-4">
-                                        <label for="sta__police_verification_pa" class="mb-1 text-sm font-semibold">{service.serviceTitle}</label>
-                                        <select
-                                            id="sta__police_verification_pa"
-                                            name="sta__police_verification_pa"
-                                            class="w-full rounded-md p-2.5 border bg-[#f7f6fb] text-[#a5a3af] border-gray-300"
+                        <div className="SelectedServices border p-5 rounded-md mx-12">
+                            <h1 className="text-center text-2xl">SELECTED SERVICES</h1>
+                            {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
+                                if (serviceData.status) {
+                                    const formJson = JSON.parse(serviceData.reportFormJson.json);
+                                    console.log('serviceData', serviceData)
 
-                                        >
-                                            <option disabled selected>{service.sub_serviceName}</option>
-                                            <option value="initiated" data-sname="police-verification-pa">INITIATED</option>
-                                            <option value="hold" data-sname="police-verification-pa">HOLD</option>
-                                        </select>
-                                    </div>
-                                ) : null
-                            ))}
+                                    return (
+                                        <div key={index} className="mb-6 flex justify-between mt-5">
+                                            {formJson.heading && (
+                                                <>
+                                                    <span>{formJson.heading}</span>
+                                                    <select
+                                                        className="border p-2 w-7/12 rounded-md"
+                                                        value={selectedStatuses[index]}
+                                                        onChange={(e) => handleSelectChange(index, e.target.value)}
+                                                        required
+                                                    >
+                                                        <option disabled value="">
+                                                            --Select status--
+                                                        </option>
+                                                        <option value="nil">NIL</option>
+                                                        <option value="initiated">INITIATED</option>
+                                                        <option value="hold">HOLD</option>
+                                                        <option value="closure advice">CLOSURE ADVICE</option>
+                                                        <option value="wip">WIP</option>
+                                                        <option value="insuff">INSUFF</option>
+                                                        <option value="completed">COMPLETED</option>
+                                                        <option value="completed_green">COMPLETED GREEN</option>
+                                                        <option value="completed_orange">COMPLETED ORANGE</option>
+                                                        <option value="completed_red">COMPLETED RED</option>
+                                                        <option value="completed_yellow">COMPLETED YELLOW</option>
+                                                        <option value="completed_pink">COMPLETED PINK</option>
+                                                        <option value="stopcheck">STOPCHECK</option>
+                                                        <option value="active employment">ACTIVE EMPLOYMENT</option>
+                                                        <option value="not doable">NOT DOABLE</option>
+                                                        <option value="candidate denied">CANDIDATE DENIED</option>
+                                                    </select>
+                                                </>
+                                            )}
+                                        </div>
+                                    );
+                                }
+                            })}
                         </div>
-                        {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
-                            if (serviceData.status) {
-                                const formJson = JSON.parse(serviceData.reportFormJson.json);
-                                return (
-                                    <div key={index} className="p-6 bg-white shadow-md rounded-lg mb-6">
-                                        <h2 className="text-2xl text-center font-semibold text-gray-800 mb-4">{formJson.heading}</h2>
-                                        {formJson.rows.map((row, rowIndex) => (
-                                            <div key={rowIndex} className="space-y-4">
-                                                <label className="block text-gray-700 font-medium">{row.label}</label>
-                                                {row.inputs.map((input, inputIndex) => (
-                                                    <div key={inputIndex} className="mb-4">
-                                                        {input.type !== "dropdown" ? (
-                                                            <input
-                                                                type={input.type}
-                                                                name={input.name}
-                                                                value={formValues[input.name] || ""}
-                                                                onChange={handleInputChange}
-                                                                placeholder={input.name}
-                                                                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                            />
-                                                        ) : (
-                                                            <select
-                                                                name={input.name}
-                                                                value={formValues[input.name] || ""}
-                                                                onChange={handleInputChange}
-                                                                className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                            >
-                                                                {input.options.map((option, optionIndex) => (
-                                                                    <option key={optionIndex} value={option.value}>
-                                                                        {option.showText}
-                                                                    </option>
-                                                                ))}
-                                                            </select>
-                                                        )}
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ))}
-                                    </div>
-                                );
-                            } else {
-                                return (
-                                    <p key={index} className="text-red-500 font-semibold">
-                                        Error fetching form data for service: {serviceData.message}
-                                    </p>
-                                );
-                            }
-                        })}
 
 
-                        <div className='form2'>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="firstLevelRemarks" className="mb-1 text-sm font-semibold">First Level Insufficiency Remarks:</label>
+
+                        <div className="container mx-auto mt-5 px-8">
+                            {servicesDataInfo && servicesDataInfo.map((serviceData, index) => {
+
+                                if (serviceData.status) {
+                                    const formJson = JSON.parse(serviceData.reportFormJson.json);
+
+
+                                    return (
+                                        <div key={index} className="mb-6 ">
+                                            {formJson.heading && (
+                                                <h3 className="text-center text-2xl font-semibold mb-4">{formJson.heading}</h3>
+                                            )}
+                                            <table className="w-full table-auto border-collapse border border-gray-300">
+                                                <thead>
+                                                    <tr className="bg-gray-100">
+                                                        {formJson.headers.map((header, idx) => (
+                                                            <th key={idx} className="py-2 px-4 border border-gray-300 text-left">{header}</th>
+                                                        ))}
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {formJson.rows.map((row, idx) => (
+                                                        <tr key={idx} className="odd:bg-gray-50">
+                                                            <td className="py-2 px-4 border border-gray-300">{row.label}</td>
+                                                            {row.inputs.length === 1 ? (
+                                                                // If there's only one input, span all columns except the first one (label)
+                                                                <td colSpan={formJson.headers.length - 1} className="py-2 px-4 border border-gray-300">
+                                                                    {renderInput(row.inputs[0])}
+                                                                </td>
+                                                            ) : (
+                                                                row.inputs.map((input, i) => (
+                                                                    <td key={i} className="py-2 px-4 border border-gray-300">
+                                                                        {renderInput(input)}
+                                                                    </td>
+                                                                ))
+                                                            )}
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+
+                                            </table>
+                                        </div>
+                                    );
+                                }
+                                return null; // Ensure something is returned if `serviceData.status` is false
+                            })}
+                        </div>
+
+                        <div className="form-group border rounded-md p-3">
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="first_insufficiency_marks">First Level Insufficiency Remarks</label>
+                                <input
+                                    type="text"
+                                    name="updated_json.insuffDetails.first_insufficiency_marks"
+                                    id="first_insufficiency_marks"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.first_insufficiency_marks}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="first_insuff_date">First Insuff Raised Date:</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.first_insuff_date"
+                                    id="first_insuff_date"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.first_insuff_date}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="first_insuff_reopened_date">First Insuff Cleared Date / Re-Opened date</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.first_insuff_reopened_date"
+                                    id="first_insuff_reopened_date"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.first_insuff_reopened_date}
+                                    onChange={handleChange}
+                                />
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="second Level Insufficiency Remarks">Second Level Insufficiency Remarks</label>
+                                <input
+                                    type="text"
+                                    name="updated_json.insuffDetails.second_insufficiency_marks"
+                                    id="second_insufficiency_marks"
+                                    value={formData.updated_json.insuffDetails.second_insufficiency_marks}
+                                    onChange={handleChange}
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                />
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="second Insuff Raised Date:">Second Insuff Raised Date:</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.second_insuff_date"
+                                    id="second_insuff_date"
+                                    value={formData.updated_json.insuffDetails.second_insuff_dat}
+                                    onChange={handleChange}
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                />
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="second Insuff Cleared Date / Re-Opened date">Second Insuff Cleared Date / Re-Opened date</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.second_insuff_reopened_date"
+                                    id="second_insuff_reopened_date"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.second_insuff_reopened_date}
+                                    onChange={handleChange}
+                                />
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="third Level Insufficiency Remarks">third Level Insufficiency Remarks</label>
+                                <input
+                                    type="text"
+                                    name="updated_json.insuffDetails.third_insufficiency_marks"
+                                    id="third_insufficiency_marks"
+                                    value={formData.updated_json.insuffDetails.third_insufficiency_marks}
+                                    onChange={handleChange}
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                />
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="third Insuff Raised Date:">third Insuff Raised Date:</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.third_insuff_date"
+                                    id="third_insuff_date"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.third_insuff_date}
+                                    onChange={handleChange}
+                                />
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="third Insuff Cleared Date / Re-Opened date">third Insuff Cleared Date / Re-Opened date</label>
+                                <input
+                                    type="date"
+                                    name="updated_json.insuffDetails.third_insuff_reopened_date"
+                                    id="third_insuff_reopened_date"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                    value={formData.updated_json.insuffDetails.third_insuff_reopened_dat}
+                                    onChange={handleChange}
+                                />
+
+                            </div>
+                            <div className="mb-4 ">
+                                <label className='capitalize text-gray-500' htmlFor="overall status">overall status</label>
+                                <select
+                                    name="updated_json.insuffDetails.overall_status"
+                                    value={formData.updated_json.insuffDetails.overall_status}
+                                    onChange={handleChange}
+                                    className="border rounded-md p-2 mt-2 uppercase w-full"
+                                >
+                                    <option value="insuff">insuff</option>
+                                    <option value="initiated">initiated</option>
+                                    <option value="wip">wip</option>
+                                    <option value="hold">hold</option>
+                                    <option value="completed" disabled={!allCompleted}  // Disable if not all statuses are completed
+                                    >
+                                        completed
+                                    </option>
+                                </select>
+
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="report date">report date</label>
+                                    <input
+                                        type="date"
+                                        name="updated_json.insuffDetails.report_date"
+                                        id="report_date"
+                                        className="border rounded-md p-2 w-full mt-2 capitalize"
+                                        value={formData.updated_json.insuffDetails.report_date}
+                                        onChange={handleChange}
+                                    />
+
+                                </div>
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="overall status">Report Status:</label>
+                                    <select name="updated_json.insuffDetails.report_status" id=""
+                                        value={formData.updated_json.insuffDetails.report_status}
+                                        onChange={handleChange}
+                                        className="border rounded-md p-2 mt-2 uppercase w-full">
+                                        <option value="insuff">insuff</option>
+                                        <option value="inititated">inititated</option>
+                                        <option value="wip" >wip</option>
+                                        <option value="hold">hold</option>
+                                    </select>
+
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="report status">Report Type:</label>
+                                    <select name="updated_json.insuffDetails.report_type" id=""
+                                        value={formData.updated_json.insuffDetails.report_type}
+                                        onChange={handleChange}
+                                        className="border rounded-md p-2 mt-2 uppercase w-full">
+                                        <option value="insuff">insuff</option>
+                                        <option value="inititated">inititated</option>
+                                        <option value="wip" >wip</option>
+                                        <option value="hold">hold</option>
+                                    </select>
+
+                                </div>
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="Final Verification Status:">Final Verification Status:</label>
+                                    <select name="updated_json.insuffDetails.final_verification_status"
+                                        value={formData.updated_json.insuffDetails.final_verification_status}
+                                        onChange={handleChange}
+                                        id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="insuff">insuff</option>
+                                        <option value="inititated">inititated</option>
+                                        <option value="wip" >wip</option>
+                                        <option value="hold">hold</option>
+                                    </select>
+
+
+
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500  ' htmlFor="Is verified by quality team">Is verified by quality team</label>
+                                    <select name="updated_json.insuffDetails.is_verify"
+                                        value={formData.updated_json.insuffDetails.is_verify}
+                                        onChange={handleChange}
+
+                                        id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
+                                    </select>
+
+                                </div>
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500 ' htmlFor="deadline date">deadline date</label>
+                                    <input
+                                        type="date"
+                                        name="updated_json.insuffDetails.deadline_date"
+                                        id="deadline_date"
+                                        className="border w-full rounded-md p-2 mt-2 capitalize"
+                                        value={formData.updated_json.insuffDetails.deadline_date}
+                                        onChange={handleChange}
+                                    />
+
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500 ' htmlFor="Address">Address</label>
+                                    <select name="updated_json.insuffDetails.insuff_address"
+                                        value={formData.updated_json.insuffDetails.insuff_address}
+                                        onChange={handleChange}
+                                        id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
+                                    </select>
+
+                                </div>
+                                <div className="mb-4 ">
+                                    <label className='capitalize text-gray-500' htmlFor="basic entry">basic entry</label>
+                                    <select name="updated_json.insuffDetails.basic_entry"
+                                        value={formData.updated_json.insuffDetails.basic_entry}
+                                        onChange={handleChange}
+                                        id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
+                                    </select>
+
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4 ">
+                                    <label className='capitalize text-gray-500 ' htmlFor="education">education</label>
+                                    <select name="updated_json.insuffDetails.education" id=""
+                                        value={formData.updated_json.insuffDetails.education}
+                                        onChange={handleChange}
+                                        className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
+                                    </select>
+
+                                </div>
+
+                                <div className="mb-4">
+                                    <label className='capitalize text-gray-500' htmlFor="case upload">case upload</label>
                                     <input
                                         type="text"
-                                        name="firstLevelRemarks"
-                                        id="firstLevelRemarks"
-                                        value={formData.firstLevelRemarks}
+                                        name="updated_json.insuffDetails.case_upload"
+                                        id="case_upload"
+                                        className="border w-full rounded-md p-2 mt-2 capitalize"
+                                        value={formData.updated_json.insuffDetails.case_upload}
                                         onChange={handleChange}
-                                        placeholder="Enter remarks"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
                                     />
+
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="firstInsuffRaisedDate" className="mb-1 text-sm font-semibold">First Insuff Raised Date:</label>
-                                    <input
-                                        type="date"
-                                        name="firstInsuffRaisedDate"
-                                        id="firstInsuffRaisedDate"
-                                        value={formData.firstInsuffRaisedDate}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-4 ">
+                                    <label className='capitalize text-gray-500 block' htmlFor="Employment Spoc:">Employment Spoc:</label>
+                                    <select name="updated_json.insuffDetails.emp_spoc" id=""
+                                        value={formData.updated_json.insuffDetails.emp_spoc}
                                         onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="firstInsuffClearedDate" className="mb-1 text-sm font-semibold">First Insuff Cleared Date / Re-Opened date:</label>
-                                    <input
-                                        type="date"
-                                        name="firstInsuffClearedDate"
-                                        id="firstInsuffClearedDate"
-                                        value={formData.firstInsuffClearedDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="secondLevelRemarks" className="mb-1 text-sm font-semibold">Second Level Insufficiency Remarks:</label>
-                                    <input
-                                        type="text"
-                                        name="secondLevelRemarks"
-                                        id="secondLevelRemarks"
-                                        value={formData.secondLevelRemarks}
-                                        onChange={handleChange}
-                                        placeholder="Enter remarks"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="secondInsuffRaisedDate" className="mb-1 text-sm font-semibold">Second Insuff Raised Date:</label>
-                                    <input
-                                        type="date"
-                                        name="secondInsuffRaisedDate"
-                                        id="secondInsuffRaisedDate"
-                                        value={formData.secondInsuffRaisedDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="secondInsuffClearedDate" className="mb-1 text-sm font-semibold">Second Insuff Cleared Date / Re-Opened date:</label>
-                                    <input
-                                        type="date"
-                                        name="secondInsuffClearedDate"
-                                        id="secondInsuffClearedDate"
-                                        value={formData.secondInsuffClearedDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="thirdLevelRemarks" className="mb-1 text-sm font-semibold">Third Level Insufficiency Remarks:</label>
-                                    <input
-                                        type="text"
-                                        name="thirdLevelRemarks"
-                                        id="thirdLevelRemarks"
-                                        value={formData.thirdLevelRemarks}
-                                        onChange={handleChange}
-                                        placeholder="Enter remarks"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="thirdInsuffRaisedDate" className="mb-1 text-sm font-semibold">Third Insuff Raised Date:</label>
-                                    <input
-                                        type="date"
-                                        name="thirdInsuffRaisedDate"
-                                        id="thirdInsuffRaisedDate"
-                                        value={formData.thirdInsuffRaisedDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="thirdInsuffClearedDate" className="mb-1 text-sm font-semibold">Third Insuff Cleared Date / Re-Opened date:</label>
-                                    <input
-                                        type="date"
-                                        name="thirdInsuffClearedDate"
-                                        id="thirdInsuffClearedDate"
-                                        value={formData.thirdInsuffClearedDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="overallStatus" className="mb-1 text-sm font-semibold">Overall Status*:</label>
-                                    <select
-                                        name="overallStatus"
-                                        id="overallStatus"
-                                        value={formData.overallStatus}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="RED">RED</option>
-                                        <option value="YELLOW">YELLOW</option>
-                                        <option value="ORANGE">ORANGE</option>
-                                        <option value="GREEN">GREEN</option>
+                                        className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
                                     </select>
-                                </div>
-                            </div>
 
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="reportDate" className="mb-1 text-sm font-semibold">Report Date:</label>
-                                    <input
-                                        type="date"
-                                        name="reportDate"
-                                        id="reportDate"
-                                        value={formData.reportDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="reportStatus" className="mb-1 text-sm font-semibold">Report Status:</label>
-                                    <select
-                                        name="reportStatus"
-                                        id="reportStatus"
-                                        value={formData.reportStatus}
+                                <div className="mb-4 ">
+                                    <label className='capitalize text-gray-500' htmlFor="Report Generated By:">Report Generated By:</label>
+                                    <select name="updated_json.insuffDetails.report_generate_by"
+                                        value={formData.updated_json.insuffDetails.report_generate_by}
                                         onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="OPEN">OPEN</option>
-                                        <option value="CLOSED">CLOSED</option>
+                                        id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                        <option value="yes">yes</option>
+                                        <option value="no">no</option>
                                     </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="reportType" className="mb-1 text-sm font-semibold">Report Type:</label>
-                                    <select
-                                        name="reportType"
-                                        id="reportType"
-                                        value={formData.reportType}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="INTERVAL REPORT">INTERVAL REPORT</option>
-                                        <option value="FINAL REPORT">FINAL REPORT</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="verificationStatus" className="mb-1 text-sm font-semibold">Final Verification Status:</label>
-                                    <select
-                                        name="verificationStatus"
-                                        id="verificationStatus"
-                                        value={formData.verificationStatus}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="GREEN">GREEN</option>
-                                        <option value="RED">RED</option>
-                                        <option value="YELLOW">YELLOW</option>
-                                        <option value="ORANGE">ORANGE</option>
-                                        <option value="PINK">PINK</option>
-
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="verificationInitiated" className="mb-1 text-sm font-semibold">VERIFICATION INITIATED </label>
-                                    <input
-                                        type="date"
-                                        name="verificationInitiated"
-                                        id="verificationInitiated"
-                                        value={formData.verificationInitiated}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="deadlineDate" className="mb-1 text-sm font-semibold">DeadLine Date </label>
-                                    <input
-                                        type="date"
-                                        name="deadlineDate"
-                                        id="deadlineDate"
-                                        value={formData.deadlineDate}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="reportGeneratedBy" className="mb-1 text-sm font-semibold">Report Generated By</label>
-                                    <select
-                                        name="reportGeneratedBy"
-                                        id="reportGeneratedBy"
-                                        value={formData.reportGeneratedBy}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="Aman">Aman</option>
-                                        <option value="Akash">Akash </option>
-                                        <option value="Ram">Ram </option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="qcDoneBy" className="mb-1 text-sm font-semibold">Qc Done By</label>
-                                    <select
-                                        name="qcDoneBy"
-                                        id="qcDoneBy"
-                                        value={formData.qcDoneBy}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="Aman">Aman</option>
-                                        <option value="Akash">Akash </option>
-                                        <option value="Ram">Ram </option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="qualityTeamVerification" className="mb-1 text-sm font-semibold">Is verified by quality team?</label>
-                                    <select
-                                        name="qualityTeamVerification"
-                                        id="qualityTeamVerification"
-                                        value={formData.qualityTeamVerification}
-                                        onChange={handleChange}
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    >
-                                        <option value="">Select an option</option>
-                                        <option value="yes">Yes</option>
-                                        <option value="no">No</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="reasonForDelay" className="mb-1 text-sm font-semibold">Reason For Delay</label>
-                                    <textarea
-                                        name="reasonForDelay"
-                                        id="reasonForDelay"
-                                        rows="4"
-                                        value={formData.reasonForDelay}
-                                        onChange={handleChange}
-                                        placeholder="Reason For delay"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    ></textarea>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="flex flex-col mb-5">
-                                    <label htmlFor="remarks" className="mb-1 text-sm font-semibold">Additional Remarks:</label>
-                                    <textarea
-                                        name="remarks"
-                                        id="remarks"
-                                        rows="4"
-                                        value={formData.remarks}
-                                        onChange={handleChange}
-                                        placeholder="Enter any additional remarks here"
-                                        className="w-full rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    ></textarea>
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4">
-                                <div className="">
-                                    <input
-                                        type="checkbox"
-                                        name="reportDate"
-                                        id="reportDate"
-                                        value={formData.reportDate}
-                                        onChange={handleChange}
-                                        className=" align-middle mr-4 rounded-md p-2.5 border bg-[#f7f6fb] border-gray-300"
-                                    />
-                                    <label htmlFor="reportDate" className="mb-1 text-sm font-semibold">Not Mandatory Fields</label>
 
                                 </div>
+                            </div>
+                            <div className="mb-4 ">
+                                <label className='capitalize block text-gray-500' htmlFor="QC Done By:">QC Done By:</label>
+
+                                <select name="updated_json.insuffDetails.qc_done_by"
+                                    value={formData.updated_json.insuffDetails.qc_done_by}
+                                    onChange={handleChange}
+                                    id="" className="border w-full rounded-md p-2 mt-2 uppercase">
+                                    <option value="yes">yes</option>
+                                    <option value="no">no</option>
+                                </select>
+
+                            </div>
+                            <div className="mb-4">
+                                <label className='capitalize text-gray-500' htmlFor="Remarks & reason for Delay:">Remarks & reason for Delay:</label>
+                                <input
+                                    type="text"
+                                    value={formData.updated_json.insuffDetails.delay_reason}
+                                    onChange={handleChange}
+                                    name="updated_json.insuffDetails.delay_reason"
+                                    id="delay_reason"
+                                    className="border w-full rounded-md p-2 mt-2 capitalize"
+                                />
+
                             </div>
                         </div>
+
                         <div className="text-right mt-4">
                             <button
                                 type="submit"
