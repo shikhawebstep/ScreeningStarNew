@@ -358,74 +358,136 @@ const AdminChekin = () => {
                 4: { cellWidth: 38, cellMargin: 5 }
             },
         });
+        yPosition = doc.autoTable.previous?.finalY ? doc.autoTable.previous.finalY + 20 : 20; // Initial yPosition with spacing
 
-        yPosition = doc.autoTable.previous.finalY + 10;
-        
-        servicesData.forEach((service, index) => {
-            const reportFormJson = JSON.parse(service.reportFormJson.json);
-            const rows = reportFormJson.rows;
-            const dbTableHeading = reportFormJson.heading;
-        
-            // Add main heading for the service
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(14);
-            doc.text(dbTableHeading.toUpperCase(), 105, yPosition); // Centered heading
-            yPosition += 10; // Move position down for the next section
-        
-            // Prepare a list of all service data (inputs)
-            const serviceData = [];
-            rows.forEach((row) => {
-                row.inputs.forEach((input) => {
-                    const inputName = input.name;
-                    const value = service.annexureData[inputName] || ''; // Get the value for the input from annexureData
-                    serviceData.push({ label: inputName, value });
+
+        // Function to detect image extension (moved outside for reusability)
+        const getImageFormat = (url) => {
+            const ext = url.split('.').pop().toLowerCase();
+            if (ext === 'png') return 'PNG';
+            if (ext === 'jpg' || ext === 'jpeg') return 'JPEG';
+            if (ext === 'webp') return 'WEBP';
+            return 'PNG'; // Default to PNG if not recognized
+        };
+
+        // Helper function to handle image loading
+        // Helper function to handle image loading
+        function loadImage(imageUrl) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => resolve(img);
+                img.onerror = () => reject(new Error('Error loading image: ' + imageUrl));
+                img.src = imageUrl;
+            });
+        }
+
+            for (const service of servicesData) {
+                const reportFormJson = JSON.parse(service.reportFormJson.json);
+                const rows = reportFormJson.rows;
+                const dbTableHeading = reportFormJson.heading;
+
+                // Add main heading for the service
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(14);
+                doc.text(dbTableHeading.toUpperCase(), doc.internal.pageSize.width / 2, yPosition, { align: 'center' });
+                yPosition += 20; // Slightly larger gap after the heading to avoid overlapping
+
+                // Prepare service data
+                const serviceData = [];
+                rows.forEach((row) => {
+                    row.inputs.forEach((input) => {
+                        const inputName = input.name;
+                        const value = service.annexureData[inputName] || '';
+                        serviceData.push({ label: inputName, value, verified: value }); // Add verified data as same value for now
+                    });
                 });
-            });
-        
-            // Prepare the table data
-            const tableData = serviceData.map((data) => [
-                data.label, // Display field name in "Particulars" column
-                data.value, // Value for "Applicant Details"
-                'N/A' // Default "Verified" column (since no verification data is provided)
-            ]);
-        
-            // Ensure yPosition doesn't overlap with previous table
-            if (index > 0) {
-                yPosition = doc.autoTable.previous.finalY + 10; // Ensure space after previous table
-            }
-        
-            // Generate the table for the service
-            doc.autoTable({
-                head: [
-                    ["Particulars", "Applicant Details", "Verified"]
-                ],
-                body: tableData,
-                startY: yPosition,
-                styles: {
-                    fontSize: 9,
-                    cellPadding: 3,
-                    lineWidth: 0.5,
-                    lineColor: [0, 0, 0]
-                },
-                columnStyles: {
-                    0: { fontStyle: "bold" }
-                },
-                theme: 'grid',
-                headStyles: {
-                    fillColor: [217, 217, 217],
-                    textColor: [0, 0, 0],
-                    fontStyle: 'bold'
+
+                // Prepare the table data to match the format
+                const tableData = serviceData.map((data) => [
+                    data.label,       // "Particulars" column
+                    data.value,       // "Applicant Details" column
+                    data.verified     // "Verified Details" column
+                ]);
+
+                // Generate the table with adjusted styles
+                doc.autoTable({
+                    head: [
+                        ["PARTICULARS", "APPLICANT DETAILS", "VERIFIED DETAILS"]
+                    ],
+                    body: tableData,
+                    startY: yPosition,
+                    styles: {
+                        fontSize: 9,
+                        cellPadding: 3,
+                        lineWidth: 0.5,
+                        lineColor: [0, 0, 0]
+                    },
+                    columnStyles: {
+                        0: { fontStyle: "bold", cellWidth: 'auto' },   // Adjust "Particulars" width to auto
+                        1: { cellWidth: 'auto' },                      // Adjust "Applicant Details" width
+                        2: { cellWidth: 'auto' }                       // Adjust "Verified Details" width
+                    },
+                    theme: 'grid',
+                    headStyles: {
+                        fillColor: [255, 255, 255],                  // White background for header
+                        textColor: [0, 0, 0],
+                        fontStyle: 'bold',
+                        halign: 'center',
+                        fontSize: 10
+                    },
+                    bodyStyles: {
+                        textColor: [0, 0, 0],
+                        halign: 'left'
+                    },
+                    tableLineColor: [0, 0, 0],
+                    tableLineWidth: 0.5,
+                    margin: { horizontal: 10 }  // Margin for left and right sides
+                });
+
+                // Update yPosition after the table is added
+                yPosition = doc.lastAutoTable.finalY + 20;
+
+                // Image handling logic (images after the table)
+                const annexureImagesKey = Object.keys(service.annexureData).find(key =>
+                    key.toLowerCase().startsWith('annexure') &&
+                    !key.includes('[') &&
+                    !key.includes(']')
+                );
+
+                if (annexureImagesKey) {
+                    const annexureImagesStr = service.annexureData[annexureImagesKey];
+                    const annexureImagesSplitArr = annexureImagesStr ? annexureImagesStr.split(',') : [];
+
+                    console.log('annexureImagesKey:', annexureImagesKey);
+
+                    // Add images immediately after each service's table
+                    for (const imageUrl of annexureImagesSplitArr) {
+                        const imageUrlFull = `https://screeningstar-new.onrender.com/${imageUrl.trim()}`;
+                        console.log('Image URL:', imageUrlFull); // For debugging
+
+                        const imageFormat = getImageFormat(imageUrlFull);
+
+                        // Wait for the image to load and add it to the PDF
+                        await loadImage(imageUrlFull).then((img) => {
+                            doc.addImage(imageUrlFull, imageFormat, 10, yPosition, doc.internal.pageSize.width - 20, 80);
+                            yPosition += 85; // Adjust spacing after each image
+                        }).catch((error) => {
+                            console.error("Error loading image:", error);
+                        });
+                    }
+                } else {
+                    console.error("No valid 'annexure' key found in annexureData.");
                 }
-            });
-        
-            // Update yPosition for the next section (after the table is rendered)
-            yPosition = doc.lastAutoTable.finalY + 10;
-        });
-        
 
+                // Increase spacing after the images and table
+                yPosition += 20;
+            }
 
+          
 
-        doc.save('SSCD.pdf');
+        // Save the PDF document
+        doc.save("services_report.pdf");
+
 
     };
 
